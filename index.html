@@ -9,27 +9,76 @@
 <meta property="og:image" content="panorama.png" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.css" />
 <style>
-  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: -apple-system, system-ui, sans-serif; }
   #viewer { position: fixed; inset: 0; }
+
+  /* top-right pill row */
+  .pill-row { position: fixed; top: 12px; right: 14px; z-index: 10; display: flex; gap: 8px; align-items: center; }
+  .pill {
+    background: rgba(0,0,0,.55); color: #fff; text-decoration: none; cursor: pointer;
+    padding: 7px 13px; border-radius: 999px;
+    font: 12px/1 -apple-system, system-ui, sans-serif; letter-spacing: .3px;
+    border: 0; user-select: none;
+  }
+  .pill:hover { background: rgba(0,0,0,.78); }
+  .pill input[type=file] { display: none; }
+
   #hint {
     position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
     background: rgba(0,0,0,.55); color: #fff; padding: 8px 14px;
     font: 13px/1.4 -apple-system, system-ui, sans-serif; border-radius: 999px;
     pointer-events: none; opacity: .85; z-index: 10;
   }
-  #explainer-link {
-    position: fixed; top: 12px; right: 14px; z-index: 10;
-    background: rgba(0,0,0,.55); color: #fff; text-decoration: none;
-    padding: 6px 12px; border-radius: 999px;
-    font: 12px/1 -apple-system, system-ui, sans-serif; letter-spacing: .3px;
+
+  /* drag-over overlay */
+  #drop-overlay {
+    position: fixed; inset: 0; z-index: 20; display: none;
+    background: rgba(0,0,0,.65); color: #fff;
+    align-items: center; justify-content: center;
+    font: 600 24px/1.4 -apple-system, system-ui, sans-serif; letter-spacing: .3px;
+    pointer-events: none;
   }
-  #explainer-link:hover { background: rgba(0,0,0,.75); }
+  #drop-overlay.visible { display: flex; }
+  #drop-overlay .inner {
+    border: 2px dashed rgba(255,255,255,.7); border-radius: 16px;
+    padding: 40px 56px; text-align: center;
+  }
+  #drop-overlay .inner small {
+    display: block; font: 400 14px/1.5 -apple-system, system-ui, sans-serif;
+    color: rgba(255,255,255,.7); margin-top: 8px;
+  }
+
+  /* error toast */
+  #toast {
+    position: fixed; left: 50%; top: 24px; transform: translateX(-50%);
+    background: #b91c1c; color: #fff; padding: 10px 16px; border-radius: 8px;
+    font: 13px/1.4 -apple-system, system-ui, sans-serif; z-index: 30;
+    opacity: 0; transition: opacity .2s ease; pointer-events: none;
+  }
+  #toast.visible { opacity: 1; }
 </style>
 </head>
 <body>
 <div id="viewer"></div>
-<a id="explainer-link" href="explainer.html">why this feels 3D →</a>
-<div id="hint">drag to look around · scroll to zoom</div>
+
+<div class="pill-row">
+  <label class="pill" title="Upload your own equirectangular 360° image (2:1 aspect ratio)">
+    upload 360°
+    <input type="file" id="file-input" accept="image/*" />
+  </label>
+  <a class="pill" href="explainer.html">why this feels 3D →</a>
+</div>
+
+<div id="hint">drag to look · scroll to zoom · drop an image anywhere</div>
+
+<div id="drop-overlay">
+  <div class="inner">
+    drop your 360° panorama
+    <small>equirectangular, 2:1 aspect ratio</small>
+  </div>
+</div>
+
+<div id="toast"></div>
 
 <script type="importmap">
 {
@@ -43,23 +92,91 @@
 import { Viewer } from '@photo-sphere-viewer/core';
 
 const params = new URLSearchParams(location.search);
-const src = params.get('img') || 'panorama.png';
+const initialSrc = params.get('img') || 'panorama.png';
 
 const viewer = new Viewer({
   container: document.getElementById('viewer'),
-  panorama: src,
+  panorama: initialSrc,
+  // Field-of-view bounds — wide max for the immersive "3D" feel.
   minFov: 30,
   maxFov: 110,
-  defaultZoomLvl: 15,
+  // Default zoom is 0 (= widest = maxFov 110°) for maximum immersion.
+  defaultZoomLvl: 0,
   mousewheelCtrlKey: false,
   moveSpeed: 1.1,
   navbar: ['zoom', 'move', 'fullscreen'],
   loadingTxt: 'Loading 360°…',
 });
 
+// Force minimum zoom on first load so it doesn't drift from the config.
 viewer.addEventListener('ready', () => {
-  viewer.zoom(20);
+  viewer.zoom(0);
 }, { once: true });
+
+// ─── Upload handling ──────────────────────────────────────────────────────
+const toastEl = document.getElementById('toast');
+let toastTimer;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('visible'), 3000);
+}
+
+let currentBlobUrl = null;
+async function loadFromFile(file) {
+  if (!file || !file.type.startsWith('image/')) {
+    toast('Please drop an image file.');
+    return;
+  }
+  // Quick 2:1 aspect ratio sanity check (non-blocking — just warn)
+  const url = URL.createObjectURL(file);
+  const probe = new Image();
+  probe.onload = async () => {
+    const ratio = probe.width / probe.height;
+    if (Math.abs(ratio - 2) > 0.1) {
+      toast(`Heads-up: image is ${probe.width}×${probe.height} (ratio ${ratio.toFixed(2)}). 360° panoramas need a 2:1 aspect ratio — it will look distorted.`);
+    }
+    await viewer.setPanorama(url, { showLoader: true });
+    viewer.zoom(0);
+    if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+    currentBlobUrl = url;
+  };
+  probe.onerror = () => {
+    URL.revokeObjectURL(url);
+    toast('Could not decode that image.');
+  };
+  probe.src = url;
+}
+
+document.getElementById('file-input').addEventListener('change', e => {
+  loadFromFile(e.target.files?.[0]);
+  e.target.value = ''; // allow re-selecting the same file
+});
+
+// ─── Drag-and-drop on the whole page ──────────────────────────────────────
+const overlay = document.getElementById('drop-overlay');
+let dragDepth = 0;
+window.addEventListener('dragenter', e => {
+  if (![...e.dataTransfer?.types || []].includes('Files')) return;
+  e.preventDefault();
+  dragDepth++;
+  overlay.classList.add('visible');
+});
+window.addEventListener('dragover', e => {
+  if (![...e.dataTransfer?.types || []].includes('Files')) return;
+  e.preventDefault();
+});
+window.addEventListener('dragleave', e => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) overlay.classList.remove('visible');
+});
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  dragDepth = 0;
+  overlay.classList.remove('visible');
+  loadFromFile(e.dataTransfer?.files?.[0]);
+});
 </script>
 </body>
 </html>
