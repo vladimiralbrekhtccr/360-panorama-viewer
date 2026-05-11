@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>360° Viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta property="og:title" content="360° Panorama" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="panorama.png" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.css" />
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #viewer { position: fixed; inset: 0; }
+  #hint {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    background: rgba(0,0,0,.55); color: #fff; padding: 8px 14px;
+    font: 13px/1.4 -apple-system, system-ui, sans-serif; border-radius: 999px;
+    pointer-events: none; opacity: .85; z-index: 10;
+  }
+  #explainer-link {
+    position: fixed; top: 12px; right: 14px; z-index: 10;
+    background: rgba(0,0,0,.55); color: #fff; text-decoration: none;
+    padding: 6px 12px; border-radius: 999px;
+    font: 12px/1 -apple-system, system-ui, sans-serif; letter-spacing: .3px;
+  }
+  #explainer-link:hover { background: rgba(0,0,0,.75); }
+</style>
+</head>
+<body>
+<div id="viewer"></div>
+<a id="explainer-link" href="explainer.html">why this feels 3D →</a>
+<div id="hint">drag to look around · scroll to zoom</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.module.js"
+  }
+}
+</script>
+<script type="module">
+import { Viewer } from '@photo-sphere-viewer/core';
+
+const params = new URLSearchParams(location.search);
+const src = params.get('img') || 'panorama.png';
+
+const viewer = new Viewer({
+  container: document.getElementById('viewer'),
+  panorama: src,
+  minFov: 30,
+  maxFov: 110,
+  defaultZoomLvl: 15,
+  mousewheelCtrlKey: false,
+  moveSpeed: 1.1,
+  navbar: ['zoom', 'move', 'fullscreen'],
+  loadingTxt: 'Loading 360°…',
+});
+
+viewer.addEventListener('ready', () => {
+  viewer.zoom(20);
+}, { once: true });
+</script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Why a wider FOV feels 3D</title>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --text: #111; --text-2: #3a3a3a; --text-3: #777;
+    --accent: #7c3aed; --accent-bg: #faf5ff;
+    --bg: #fff; --border: #e0e0e0; --code-bg: #f4f4f8;
+    --green:  #15803d; --green-bg:  #f0fdf4;
+    --red:    #b91c1c; --red-bg:    #fef2f2;
+    --orange: #c2410c; --orange-bg: #fffbeb;
+    --blue:   #1d4ed8; --blue-bg:   #eff6ff;
+    --font-body: 'Literata', Georgia, serif;
+    --font-ui:   'DM Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font-family: var(--font-body); font-size: 16.5px; line-height: 1.78; }
+  .paper { max-width: 880px; margin: 0 auto; padding: 56px 40px; }
+  @media (max-width: 600px) { .paper { padding: 24px 16px; } }
+
+  p { text-align: justify; color: var(--text-2); margin: 0 0 14px; }
+
+  /* Title block */
+  .title-block { margin-bottom: 36px; }
+  .draft-tag {
+    display: inline-block; background: var(--accent-bg); color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 3px;
+    padding: 3px 10px; font-family: var(--font-ui); font-size: 11px;
+    font-weight: 500; text-transform: uppercase; letter-spacing: 1.2px;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-family: var(--font-body); font-size: 28px; font-weight: 700;
+    line-height: 1.35; margin: 0 0 8px; color: var(--text);
+  }
+  .tagline { font-style: italic; color: var(--text-3); margin: 0 0 10px; text-align: left; }
+  .meta-line {
+    font-family: var(--font-ui); font-size: 14px; color: var(--text-3);
+    margin: 0; text-align: left;
+  }
+  .meta-line span { margin: 0 8px; }
+
+  /* Headings */
+  h2 {
+    font-family: var(--font-ui); font-size: 21px; font-weight: 700;
+    margin: 40px 0 16px; padding-bottom: 8px;
+    border-bottom: 1px solid #eee; color: var(--text);
+  }
+  h2 .sn { color: var(--accent); margin-right: 4px; }
+  h3 { font-family: var(--font-ui); font-size: 17px; font-weight: 700; margin: 24px 0 10px; }
+
+  /* Abstract */
+  .abstract {
+    background: #fafbfe; border-left: 3px solid var(--accent);
+    padding: 16px 20px; margin: 20px 0 30px; border-radius: 0 4px 4px 0;
+  }
+  .abstract-label {
+    font-family: var(--font-ui); font-size: 12px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--accent); margin-bottom: 6px;
+  }
+  .abstract p { margin: 0; }
+
+  /* Note boxes */
+  .note-box {
+    border-radius: 6px; padding: 16px 20px; margin: 18px 0;
+    font-size: 15px; line-height: 1.7;
+  }
+  .note-green  { background: var(--green-bg);  border: 1px solid #86efac; }
+  .note-green strong { color: var(--green); }
+  .note-blue   { background: var(--blue-bg);   border: 1px solid #93c5fd; }
+  .note-blue strong { color: var(--blue); }
+  .note-orange { background: var(--orange-bg); border: 1px solid #fde68a; }
+  .note-orange strong { color: var(--orange); }
+  .note-purple { background: var(--accent-bg); border: 1px solid #c4b5fd; }
+  .note-purple strong { color: var(--accent); }
+
+  /* Spectrum */
+  .spectrum {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px; margin: 22px 0;
+  }
+  .spectrum-item {
+    text-align: center; padding: 22px 14px;
+    background: #fafafa; border: 1px solid var(--border); border-radius: 6px;
+  }
+  .spectrum-letter {
+    font-family: var(--font-mono); font-size: 24px; font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .spectrum-item p { text-align: center; font-size: 14px; line-height: 1.5; margin: 0; }
+  .spectrum-item strong { font-family: var(--font-ui); }
+  @media (max-width: 600px) { .spectrum { grid-template-columns: 1fr; } }
+
+  /* Code/eq */
+  .eq {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 5px; padding: 14px 18px;
+    font-family: var(--font-mono); font-size: 13.5px; line-height: 1.9;
+    color: var(--text-2); overflow-x: auto; margin: 14px 0;
+  }
+  code { font-family: var(--font-mono); font-size: 0.92em;
+         background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+
+  /* Inline diagram */
+  figure { margin: 22px 0; }
+  figure svg { display: block; width: 100%; max-width: 560px; margin: 0 auto; height: auto; }
+  figcaption {
+    font-family: var(--font-ui); font-size: 13px; color: var(--text-3);
+    text-align: center; margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="paper">
+
+  <div class="title-block">
+    <div class="draft-tag">Note — May 2026</div>
+    <h1>Why a wider FOV makes a 360° panorama feel 3D</h1>
+    <p class="tagline">It is not stereoscopic depth — it is a perceptual trick from the camera's field of view.</p>
+    <p class="meta-line">Equirectangular projection <span>·</span> Perspective math <span>·</span> Peripheral vision</p>
+  </div>
+
+  <div class="abstract">
+    <div class="abstract-label">TL;DR</div>
+    <p>Your PNG is wrapped on the <em>inside</em> of a sphere; a virtual camera sits at the centre. The camera has a field of view in degrees. A narrow FOV is a telephoto lens — it crops a flat-looking slice. A wide FOV approaches the angular range of a human eye, so the curvature of the sphere becomes visible at the edges and your brain reads it as "being inside a place" rather than "looking at a photo."</p>
+  </div>
+
+  <h2><span class="sn">1</span> The source image is a sphere, unrolled</h2>
+
+  <p>The PNG you loaded is an <strong>equirectangular projection</strong>. Every column of pixels maps to a longitude (0–360°) and every row to a latitude (–90° to +90°), exactly like a Mercator world map. That is why the aspect ratio is 2:1 and why the very top and bottom of the image look stretched: the two poles of the sphere are smeared across the full image width.</p>
+
+  <div class="note-blue note-box">
+    <strong>Check:</strong> any 360° panorama needs a 2:1 aspect ratio (2000×1000, 4096×2048, 8192×4096…). If it is not 2:1, it is not a full sphere and the viewer will distort it.
+  </div>
+
+  <h2><span class="sn">2</span> The viewer flips a sphere inside-out</h2>
+
+  <p>Three.js (which Photo Sphere Viewer wraps) builds a sphere mesh, applies the panorama as a texture, and inverts the normals so the textured side faces inward. The camera is placed at the centre. From in there, every direction you look hits the texture — there is no "outside" of the world.</p>
+
+  <figure>
+    <svg viewBox="0 0 560 220" xmlns="http://www.w3.org/2000/svg" aria-label="Sphere with camera and two FOV cones">
+      <!-- sphere -->
+      <circle cx="280" cy="110" r="95" fill="none" stroke="#bbb" stroke-width="1.2"/>
+      <ellipse cx="280" cy="110" rx="95" ry="22" fill="none" stroke="#ddd" stroke-width="1" stroke-dasharray="3 3"/>
+      <!-- wide FOV cone (left) -->
+      <path d="M 280 110 L 188 60 A 95 95 0 0 1 188 160 Z" fill="#7c3aed" fill-opacity="0.12" stroke="#7c3aed" stroke-width="1.2"/>
+      <text x="120" y="115" font-family="DM Sans, sans-serif" font-size="12" fill="#7c3aed" font-weight="700">FOV 100°</text>
+      <text x="120" y="130" font-family="DM Sans, sans-serif" font-size="11" fill="#7c3aed">wide / immersive</text>
+      <!-- narrow FOV cone (right) -->
+      <path d="M 280 110 L 370 95 A 95 95 0 0 1 370 125 Z" fill="#1d4ed8" fill-opacity="0.18" stroke="#1d4ed8" stroke-width="1.2"/>
+      <text x="385" y="105" font-family="DM Sans, sans-serif" font-size="12" fill="#1d4ed8" font-weight="700">FOV 30°</text>
+      <text x="385" y="120" font-family="DM Sans, sans-serif" font-size="11" fill="#1d4ed8">narrow / flat</text>
+      <!-- camera dot -->
+      <circle cx="280" cy="110" r="4" fill="#111"/>
+      <text x="287" y="108" font-family="IBM Plex Mono, monospace" font-size="11" fill="#111">camera</text>
+    </svg>
+    <figcaption>The same sphere, two camera FOVs. Wide cone catches the curvature; narrow cone catches a near-flat patch.</figcaption>
+  </figure>
+
+  <h2><span class="sn">3</span> FOV is the whole trick</h2>
+
+  <p>A perspective camera projects the slice of the world inside a cone onto your flat screen. The cone's opening angle is the <strong>field of view</strong>. Photo Sphere Viewer exposes it as <code>minFov</code> / <code>maxFov</code> in degrees, and what users call "zoom" is just <em>changing this angle</em>.</p>
+
+  <div class="eq">minFov: 30      // most zoomed-in  → looks 2D
+maxFov: 110     // most zoomed-out → looks 3D
+defaultZoomLvl: 15   // start near the wide end</div>
+
+  <div class="spectrum">
+    <div class="spectrum-item">
+      <div class="spectrum-letter" style="color: var(--blue);">30°</div>
+      <p><strong>Telephoto</strong><br>Compresses depth. Edges have no curvature. Looks like a flat crop.</p>
+    </div>
+    <div class="spectrum-item">
+      <div class="spectrum-letter" style="color: var(--orange);">60°</div>
+      <p><strong>Normal lens</strong><br>About what a printed photo feels like on a wall.</p>
+    </div>
+    <div class="spectrum-item">
+      <div class="spectrum-letter" style="color: var(--accent);">100°</div>
+      <p><strong>Wide / human-ish</strong><br>Sphere curvature is visible at the edges. Feels like a place.</p>
+    </div>
+  </div>
+
+  <h2><span class="sn">4</span> Why wide reads as "3D"</h2>
+
+  <p>There are three perceptual cues stacking up, and none of them are real depth:</p>
+
+  <div class="note-purple note-box">
+    <strong>Peripheral fill.</strong> A human eye covers roughly 120° horizontally. At 100° FOV the panorama fills almost all of your screen-mediated peripheral vision, so there is no flat edge to anchor your "this is a picture" reading.
+  </div>
+
+  <div class="note-purple note-box">
+    <strong>Edge curvature.</strong> Straight lines in the world (the tree trunks, the bridge edge) bend slightly at the frame boundary because a wide perspective projection has to fan a large angular range onto a flat rectangle. That bending is the same cue you get from a wide-angle camera lens, and your brain has learned to read it as "I am inside this space."
+  </div>
+
+  <div class="note-purple note-box">
+    <strong>Motion parallax that matches head-turn.</strong> When you drag, the view rotates around your eye-point. At wide FOV, the speed at which features sweep across the frame matches what they would do if you actually turned your head in a real environment. At narrow FOV they slide unnaturally, like panning a poster.
+  </div>
+
+  <h2><span class="sn">5</span> Why narrow felt flat</h2>
+
+  <p>A 30° FOV slice of an equirectangular panorama is geometrically nearly identical to a flat printout of that crop. The sphere is so big relative to the cone that the visible patch is almost a plane. No curvature, no peripheral fill, and rotating just slides a 2D picture sideways. So your brain — correctly — calls it 2D.</p>
+
+  <div class="note-green note-box">
+    <strong>Reality check.</strong> None of this is stereoscopic 3D. There is no real depth in the image — both your eyes see the same pixels. The "3D feeling" is entirely a side-effect of FOV, peripheral fill, and motion. True depth would require either a depth map plus reprojection, or a stereo pair (one panorama per eye, as in VR).
+  </div>
+
+  <h2><span class="sn">6</span> The settings we landed on</h2>
+
+  <div class="eq">new Viewer({
+  panorama: '…2:1 equirectangular png…',
+  minFov: 30,        // floor — anything below feels overzoomed
+  maxFov: 110,       // ceiling — beyond ~120° edges warp painfully
+  defaultZoomLvl: 15 // drop user near the wide end on load
+});</div>
+
+  <p>If you want it even more dramatic, push <code>maxFov</code> to <code>120</code> — that is around the limit before the equirectangular-to-perspective remap starts visibly bending vertical lines into curves. Below <code>60</code> the scene flattens out and the spell breaks; that is why ChatGPT's viewer never lets you zoom <em>out</em> further than it does either.</p>
+
+  <div class="note-orange note-box">
+    <strong>One caveat.</strong> Source resolution caps the wide-end feel. A 2000×1000 image at FOV 100° spreads roughly 555 px across your screen's horizontal — fine, but a 4096×2048 source will look noticeably sharper at the same FOV and the immersion holds up better.
+  </div>
+
+</div>
+</body>
+</html>
