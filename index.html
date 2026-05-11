@@ -9,59 +9,124 @@
 <meta property="og:image" content="panorama.png" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.css" />
 <style>
-  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: -apple-system, system-ui, sans-serif; }
+  :root { --pill-bg: rgba(0,0,0,.55); --pill-bg-hover: rgba(0,0,0,.78); --panel-bg: #14141a; --panel-border: #2a2a32; --text-dim: rgba(255,255,255,.6); }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: -apple-system, system-ui, sans-serif; color: #fff; }
   #viewer { position: fixed; inset: 0; }
 
-  /* top-right pill row */
-  .pill-row { position: fixed; top: 12px; right: 14px; z-index: 10; display: flex; gap: 8px; align-items: center; }
-  .pill {
-    background: rgba(0,0,0,.55); color: #fff; text-decoration: none; cursor: pointer;
+  /* Pill row utility */
+  .pill, .pill-btn {
+    background: var(--pill-bg); color: #fff; text-decoration: none; cursor: pointer;
     padding: 7px 13px; border-radius: 999px;
     font: 12px/1 -apple-system, system-ui, sans-serif; letter-spacing: .3px;
-    border: 0; user-select: none;
+    border: 0; user-select: none; display: inline-flex; align-items: center; gap: 6px;
   }
-  .pill:hover { background: rgba(0,0,0,.78); }
+  .pill:hover, .pill-btn:hover { background: var(--pill-bg-hover); }
   .pill input[type=file] { display: none; }
+
+  /* Top-left: gallery */
+  #gallery-toggle { position: fixed; top: 12px; left: 14px; z-index: 12; }
+  #gallery-toggle .count {
+    background: #fff; color: #000; border-radius: 999px;
+    padding: 1px 7px; font-weight: 600; font-size: 11px;
+  }
+
+  /* Top-right: upload + explainer */
+  .pill-row-right { position: fixed; top: 12px; right: 14px; z-index: 12; display: flex; gap: 8px; align-items: center; }
 
   #hint {
     position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
-    background: rgba(0,0,0,.55); color: #fff; padding: 8px 14px;
+    background: var(--pill-bg); color: #fff; padding: 8px 14px;
     font: 13px/1.4 -apple-system, system-ui, sans-serif; border-radius: 999px;
     pointer-events: none; opacity: .85; z-index: 10;
   }
 
-  /* drag-over overlay */
+  /* Drop overlay */
   #drop-overlay {
     position: fixed; inset: 0; z-index: 20; display: none;
-    background: rgba(0,0,0,.65); color: #fff;
-    align-items: center; justify-content: center;
-    font: 600 24px/1.4 -apple-system, system-ui, sans-serif; letter-spacing: .3px;
-    pointer-events: none;
+    background: rgba(0,0,0,.65); align-items: center; justify-content: center;
+    font: 600 24px/1.4 -apple-system, system-ui, sans-serif; pointer-events: none;
   }
   #drop-overlay.visible { display: flex; }
-  #drop-overlay .inner {
-    border: 2px dashed rgba(255,255,255,.7); border-radius: 16px;
-    padding: 40px 56px; text-align: center;
-  }
-  #drop-overlay .inner small {
-    display: block; font: 400 14px/1.5 -apple-system, system-ui, sans-serif;
-    color: rgba(255,255,255,.7); margin-top: 8px;
-  }
+  #drop-overlay .inner { border: 2px dashed rgba(255,255,255,.7); border-radius: 16px; padding: 40px 56px; text-align: center; }
+  #drop-overlay .inner small { display: block; font: 400 14px/1.5 sans-serif; color: var(--text-dim); margin-top: 8px; }
 
-  /* error toast */
+  /* Toast */
   #toast {
-    position: fixed; left: 50%; top: 24px; transform: translateX(-50%);
+    position: fixed; left: 50%; top: 56px; transform: translateX(-50%);
     background: #b91c1c; color: #fff; padding: 10px 16px; border-radius: 8px;
-    font: 13px/1.4 -apple-system, system-ui, sans-serif; z-index: 30;
-    opacity: 0; transition: opacity .2s ease; pointer-events: none;
+    font: 13px/1.4 sans-serif; z-index: 30; opacity: 0; transition: opacity .2s ease; pointer-events: none;
+    max-width: 90vw; text-align: center;
   }
   #toast.visible { opacity: 1; }
+  #toast.info { background: #1d4ed8; }
+
+  /* Gallery panel */
+  #gallery {
+    position: fixed; top: 0; left: 0; bottom: 0; width: min(360px, 88vw);
+    background: var(--panel-bg); border-right: 1px solid var(--panel-border);
+    transform: translateX(-100%); transition: transform .22s ease;
+    z-index: 25; display: flex; flex-direction: column;
+  }
+  #gallery.open { transform: translateX(0); }
+  #gallery .head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--panel-border);
+  }
+  #gallery .head h2 { margin: 0; font: 600 14px/1 sans-serif; letter-spacing: .5px; text-transform: uppercase; color: #fff; }
+  #gallery .head .actions { display: flex; gap: 8px; }
+  #gallery .head button {
+    background: transparent; color: var(--text-dim); border: 1px solid var(--panel-border);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; font: 11px sans-serif;
+  }
+  #gallery .head button:hover { color: #fff; border-color: #555; }
+  #gallery .head .close-x {
+    background: transparent; border: 0; color: #fff; font-size: 22px; line-height: 1;
+    cursor: pointer; padding: 4px 8px;
+  }
+
+  #gallery .body { flex: 1; overflow-y: auto; padding: 12px; }
+  #gallery .empty {
+    text-align: center; color: var(--text-dim); padding: 40px 20px;
+    font: 13px/1.6 sans-serif;
+  }
+  #gallery .empty strong { display: block; color: #fff; font-size: 14px; margin-bottom: 6px; }
+
+  .thumbs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .thumb {
+    position: relative; aspect-ratio: 2/1; border-radius: 6px; overflow: hidden;
+    background: #000; cursor: pointer; border: 1px solid var(--panel-border);
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb:hover { border-color: #888; }
+  .thumb.active { border-color: #7c3aed; box-shadow: 0 0 0 2px #7c3aed44; }
+  .thumb .del {
+    position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
+    border-radius: 50%; border: 0; background: rgba(0,0,0,.7); color: #fff;
+    font-size: 14px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .thumb:hover .del { opacity: 1; }
+  .thumb .meta {
+    position: absolute; bottom: 0; left: 0; right: 0; padding: 4px 6px;
+    background: linear-gradient(transparent, rgba(0,0,0,.8));
+    font: 11px sans-serif; color: #fff;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  #gallery .foot {
+    padding: 10px 16px; border-top: 1px solid var(--panel-border);
+    font: 11px/1.5 sans-serif; color: var(--text-dim);
+  }
 </style>
 </head>
 <body>
 <div id="viewer"></div>
 
-<div class="pill-row">
+<button id="gallery-toggle" class="pill-btn" type="button" aria-label="Open gallery">
+  ☰ gallery <span class="count" id="gallery-count" style="display:none">0</span>
+</button>
+
+<div class="pill-row-right">
   <label class="pill" title="Upload your own equirectangular 360° image (2:1 aspect ratio)">
     upload 360°
     <input type="file" id="file-input" accept="image/*" />
@@ -80,6 +145,18 @@
 
 <div id="toast"></div>
 
+<aside id="gallery" aria-hidden="true">
+  <div class="head">
+    <h2>your gallery</h2>
+    <div class="actions">
+      <button id="gallery-clear" type="button">clear all</button>
+      <button class="close-x" id="gallery-close" type="button" aria-label="Close">×</button>
+    </div>
+  </div>
+  <div class="body" id="gallery-body"></div>
+  <div class="foot">stored locally in your browser · ~gigabytes available · nothing uploaded to github</div>
+</aside>
+
 <script type="importmap">
 {
   "imports": {
@@ -91,92 +168,254 @@
 <script type="module">
 import { Viewer } from '@photo-sphere-viewer/core';
 
+// ─── IndexedDB tiny wrapper ───────────────────────────────────────────────
+const DB_NAME = 'pano-gallery';
+const STORE = 'images';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        const os = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+        os.createIndex('addedAt', 'addedAt');
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function dbAdd(rec) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).add(rec);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function dbAll() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).index('addedAt').getAll();
+    req.onsuccess = () => resolve(req.result.reverse()); // newest first
+    req.onerror = () => reject(req.error);
+  });
+}
+async function dbGet(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function dbDelete(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readwrite').objectStore(STORE).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+async function dbClear() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readwrite').objectStore(STORE).clear();
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ─── Thumbnail generation ─────────────────────────────────────────────────
+async function makeThumb(blob, maxW = 384) {
+  const img = await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const i = new Image();
+    i.onload = () => { URL.revokeObjectURL(url); resolve(i); };
+    i.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode failed')); };
+    i.src = url;
+  });
+  const w = Math.min(maxW, img.naturalWidth);
+  const h = Math.round(img.naturalHeight * (w / img.naturalWidth));
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+  const thumbBlob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.72));
+  return { thumbBlob, width: img.naturalWidth, height: img.naturalHeight };
+}
+
+// ─── Viewer ───────────────────────────────────────────────────────────────
 const params = new URLSearchParams(location.search);
 const initialSrc = params.get('img') || 'panorama.png';
 
 const viewer = new Viewer({
   container: document.getElementById('viewer'),
   panorama: initialSrc,
-  // Field-of-view bounds — wide max for the immersive "3D" feel.
   minFov: 30,
   maxFov: 110,
-  // Default zoom is 0 (= widest = maxFov 110°) for maximum immersion.
-  defaultZoomLvl: 0,
+  defaultZoomLvl: 0,         // start fully zoomed out (FOV 110°)
   mousewheelCtrlKey: false,
   moveSpeed: 1.1,
   navbar: ['zoom', 'move', 'fullscreen'],
   loadingTxt: 'Loading 360°…',
 });
+viewer.addEventListener('ready', () => viewer.zoom(0), { once: true });
 
-// Force minimum zoom on first load so it doesn't drift from the config.
-viewer.addEventListener('ready', () => {
+let currentObjUrl = null;
+let activeId = null;
+
+async function loadFromBlob(blob, { id = null, markActive = true } = {}) {
+  const newUrl = URL.createObjectURL(blob);
+  await viewer.setPanorama(newUrl, { showLoader: true });
   viewer.zoom(0);
-}, { once: true });
-
-// ─── Upload handling ──────────────────────────────────────────────────────
-const toastEl = document.getElementById('toast');
-let toastTimer;
-function toast(msg) {
-  toastEl.textContent = msg;
-  toastEl.classList.add('visible');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('visible'), 3000);
+  if (currentObjUrl) URL.revokeObjectURL(currentObjUrl);
+  currentObjUrl = newUrl;
+  if (markActive) {
+    activeId = id;
+    renderGallery();
+  }
 }
 
-let currentBlobUrl = null;
-async function loadFromFile(file) {
+// ─── Toast ────────────────────────────────────────────────────────────────
+const toastEl = document.getElementById('toast');
+let toastTimer;
+function toast(msg, kind = 'error') {
+  toastEl.textContent = msg;
+  toastEl.className = kind === 'info' ? 'info visible' : 'visible';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.className = '', 3000);
+}
+
+// ─── Upload pipeline ──────────────────────────────────────────────────────
+async function ingest(file) {
   if (!file || !file.type.startsWith('image/')) {
-    toast('Please drop an image file.');
+    toast('Please pick an image file.');
     return;
   }
-  // Quick 2:1 aspect ratio sanity check (non-blocking — just warn)
-  const url = URL.createObjectURL(file);
-  const probe = new Image();
-  probe.onload = async () => {
-    const ratio = probe.width / probe.height;
+  try {
+    const { thumbBlob, width, height } = await makeThumb(file);
+    const ratio = width / height;
     if (Math.abs(ratio - 2) > 0.1) {
-      toast(`Heads-up: image is ${probe.width}×${probe.height} (ratio ${ratio.toFixed(2)}). 360° panoramas need a 2:1 aspect ratio — it will look distorted.`);
+      toast(`Heads-up: ${width}×${height} (ratio ${ratio.toFixed(2)}). 360° panoramas need 2:1 — this will look stretched.`, 'info');
     }
-    await viewer.setPanorama(url, { showLoader: true });
-    viewer.zoom(0);
-    if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
-    currentBlobUrl = url;
-  };
-  probe.onerror = () => {
-    URL.revokeObjectURL(url);
-    toast('Could not decode that image.');
-  };
-  probe.src = url;
+    const id = await dbAdd({
+      name: file.name || 'untitled.png',
+      addedAt: Date.now(),
+      fullBlob: file,
+      thumbBlob,
+      width, height,
+    });
+    await loadFromBlob(file, { id });
+  } catch (err) {
+    console.error(err);
+    toast('Could not load that image.');
+  }
 }
 
 document.getElementById('file-input').addEventListener('change', e => {
-  loadFromFile(e.target.files?.[0]);
-  e.target.value = ''; // allow re-selecting the same file
+  ingest(e.target.files?.[0]);
+  e.target.value = '';
 });
 
-// ─── Drag-and-drop on the whole page ──────────────────────────────────────
+// ─── Drag-and-drop ────────────────────────────────────────────────────────
 const overlay = document.getElementById('drop-overlay');
 let dragDepth = 0;
 window.addEventListener('dragenter', e => {
   if (![...e.dataTransfer?.types || []].includes('Files')) return;
-  e.preventDefault();
-  dragDepth++;
-  overlay.classList.add('visible');
+  e.preventDefault(); dragDepth++; overlay.classList.add('visible');
 });
 window.addEventListener('dragover', e => {
   if (![...e.dataTransfer?.types || []].includes('Files')) return;
   e.preventDefault();
 });
-window.addEventListener('dragleave', e => {
+window.addEventListener('dragleave', () => {
   dragDepth = Math.max(0, dragDepth - 1);
   if (dragDepth === 0) overlay.classList.remove('visible');
 });
 window.addEventListener('drop', e => {
-  e.preventDefault();
-  dragDepth = 0;
-  overlay.classList.remove('visible');
-  loadFromFile(e.dataTransfer?.files?.[0]);
+  e.preventDefault(); dragDepth = 0; overlay.classList.remove('visible');
+  ingest(e.dataTransfer?.files?.[0]);
 });
+
+// ─── Gallery panel ────────────────────────────────────────────────────────
+const galleryEl = document.getElementById('gallery');
+const galleryBody = document.getElementById('gallery-body');
+const galleryCount = document.getElementById('gallery-count');
+
+document.getElementById('gallery-toggle').addEventListener('click', () => {
+  galleryEl.classList.toggle('open');
+  galleryEl.setAttribute('aria-hidden', galleryEl.classList.contains('open') ? 'false' : 'true');
+  if (galleryEl.classList.contains('open')) renderGallery();
+});
+document.getElementById('gallery-close').addEventListener('click', () => {
+  galleryEl.classList.remove('open');
+});
+document.getElementById('gallery-clear').addEventListener('click', async () => {
+  if (!confirm('Delete all saved images from this browser?')) return;
+  await dbClear();
+  activeId = null;
+  renderGallery();
+});
+
+let thumbUrls = [];
+function clearThumbUrls() {
+  thumbUrls.forEach(u => URL.revokeObjectURL(u));
+  thumbUrls = [];
+}
+
+async function renderGallery() {
+  const items = await dbAll();
+  galleryCount.textContent = items.length;
+  galleryCount.style.display = items.length ? '' : 'none';
+
+  clearThumbUrls();
+  if (items.length === 0) {
+    galleryBody.innerHTML = `
+      <div class="empty">
+        <strong>no saved images yet</strong>
+        upload or drop a 360° panorama and it lives here.
+      </div>`;
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'thumbs';
+
+  for (const it of items) {
+    const url = URL.createObjectURL(it.thumbBlob);
+    thumbUrls.push(url);
+    const cell = document.createElement('div');
+    cell.className = 'thumb' + (it.id === activeId ? ' active' : '');
+    cell.innerHTML = `
+      <img alt="" loading="lazy" src="${url}">
+      <button class="del" aria-label="Delete">×</button>
+      <div class="meta">${escapeHtml(it.name)}</div>
+    `;
+    cell.querySelector('img').addEventListener('click', async () => {
+      const rec = await dbGet(it.id);
+      if (rec) loadFromBlob(rec.fullBlob, { id: it.id });
+    });
+    cell.querySelector('.del').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await dbDelete(it.id);
+      if (activeId === it.id) activeId = null;
+      renderGallery();
+    });
+    grid.appendChild(cell);
+  }
+  galleryBody.innerHTML = '';
+  galleryBody.appendChild(grid);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Initial render so the badge count reflects what's stored.
+renderGallery();
 </script>
 </body>
 </html>
