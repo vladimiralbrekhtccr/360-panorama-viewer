@@ -57,7 +57,7 @@
 <div id="crosshair"></div>
 <div id="hud">
   <b>panorama → walkable mesh</b> · DepthAnything-V2 depth shell + panorama texture<br>
-  <kbd>click</kbd> to lock · <kbd>WASD</kbd> move · <kbd>Space</kbd> jump/up · <kbd>Shift</kbd> down ·
+  <kbd>click</kbd> to lock · <kbd>WASD</kbd> move · <kbd>Shift</kbd> sprint/down · <kbd>Space</kbd> jump/up ·
   <kbd>F</kbd> fly/walk · <kbd>T</kbd> texture/wire · <kbd>R</kbd> reset · <kbd>Esc</kbd> release ·
   <a href="../3dgs/">splat version</a> · <a href="https://github.com/vladimiralbrekhtccr/world-models">repo</a>
 </div>
@@ -140,8 +140,9 @@ const GRAVITY  = 18.0;        // m/s²
 const JUMP_V   = 5.5;         // m/s upward kick (~1.7 m peak)
 const EYE_H    = 1.6;         // metres above ground
 
-const speed    = 2.4;         // m/s walking
-const flySpeed = 4.0;         // m/s fly
+const speed     = 2.4;         // m/s walking
+const sprintMul = 2.4;         // Shift in walk mode (~5.8 m/s)
+const flySpeed  = 4.0;         // m/s fly
 const raycaster = new THREE.Raycaster();
 const downVec   = new THREE.Vector3(0, -1, 0);
 
@@ -274,7 +275,8 @@ function tick() {
   if (controls.isLocked && meshLoaded) {
     const forward = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
     const right   = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
-    const v = flyMode ? flySpeed : speed;
+    const sprinting = !flyMode && (keys.ShiftLeft || keys.ShiftRight);
+    const v = flyMode ? flySpeed : (sprinting ? speed * sprintMul : speed);
 
     if (forward) controls.moveForward(forward * v * dt);
     if (right)   controls.moveRight  (right   * v * dt);
