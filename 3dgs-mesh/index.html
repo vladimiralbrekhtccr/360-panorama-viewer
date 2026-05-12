@@ -57,8 +57,8 @@
 <div id="crosshair"></div>
 <div id="hud">
   <b>panorama → walkable mesh</b> · DepthAnything-V2 depth shell + panorama texture<br>
-  <kbd>click</kbd> to lock mouse · <kbd>WASD</kbd> move · <kbd>Space</kbd> up · <kbd>Shift</kbd> down ·
-  <kbd>F</kbd> fly/walk · <kbd>R</kbd> reset · <kbd>Esc</kbd> release ·
+  <kbd>click</kbd> to lock · <kbd>WASD</kbd> move · <kbd>Space</kbd> jump/up · <kbd>Shift</kbd> down ·
+  <kbd>F</kbd> fly/walk · <kbd>T</kbd> texture/wire · <kbd>R</kbd> reset · <kbd>Esc</kbd> release ·
   <a href="../3dgs/">splat version</a> · <a href="https://github.com/vladimiralbrekhtccr/world-models">repo</a>
 </div>
 <div id="status"></div>
@@ -111,7 +111,12 @@ scene.add(controls.getObject());
 
 // Keys
 const keys = {};
-addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyF') toggleFly(); if (e.code === 'KeyR') resetCamera(); });
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'KeyF') toggleFly();
+  if (e.code === 'KeyR') resetCamera();
+  if (e.code === 'KeyT') cycleViewMode();
+});
 addEventListener('keyup',   e => { keys[e.code] = false; });
 addEventListener('resize',  () => {
   camera.aspect = innerWidth / innerHeight;
@@ -120,13 +125,23 @@ addEventListener('resize',  () => {
 });
 
 // Movement state
-let flyMode   = false;
+let flyMode    = false;
 let meshLoaded = false;
-let sceneObjects = [];
+let sceneObjects = [];        // textured meshes
+let wireOverlays = [];        // wireframe duplicates (mode 2)
+const savedMaterials = new Map();
 
-const speed     = 2.4;        // m/s walking
-const flySpeed  = 4.0;        // m/s fly
-const eyeHeight = 0.0;        // we spawn at origin (~original camera height)
+let viewMode  = 0;            // 0 = textured, 1 = wireframe-only, 2 = textured + wireframe
+
+// Jump / gravity (walk mode)
+let yVel       = 0;
+let grounded   = true;
+const GRAVITY  = 18.0;        // m/s²
+const JUMP_V   = 5.5;         // m/s upward kick (~1.7 m peak)
+const EYE_H    = 1.6;         // metres above ground
+
+const speed    = 2.4;         // m/s walking
+const flySpeed = 4.0;         // m/s fly
 const raycaster = new THREE.Raycaster();
 const downVec   = new THREE.Vector3(0, -1, 0);
 
@@ -138,13 +153,33 @@ function flashStatus(msg, ttl = 1200) {
 }
 function toggleFly() {
   flyMode = !flyMode;
-  flashStatus(flyMode ? 'fly mode' : 'walk mode (raycast snap)');
+  if (flyMode) yVel = 0;       // freeze jump physics when leaving walk mode
+  flashStatus(flyMode ? 'fly mode' : 'walk mode (gravity + jump)');
 }
 function resetCamera() {
-  camera.position.set(0, 0, 0);
-  controls.getObject().rotation.set(0, 0, 0);
+  controls.getObject().position.set(0, 0, 0);
   camera.rotation.set(0, 0, 0);
+  yVel = 0; grounded = false;  // let walk-mode snap us back to the floor
   flashStatus('reset to origin');
+}
+function cycleViewMode() {
+  if (!meshLoaded) return;
+  viewMode = (viewMode + 1) % 3;
+  for (const m of sceneObjects) {
+    if (viewMode === 1) {
+      // wireframe-only: replace with a plain coloured wireframe material
+      if (!m.userData.wireMat) {
+        m.userData.wireMat = new THREE.MeshBasicMaterial({
+          color: 0xa3ffc6, wireframe: true,
+        });
+      }
+      m.material = m.userData.wireMat;
+    } else {
+      m.material = savedMaterials.get(m);
+    }
+  }
+  for (const w of wireOverlays) w.visible = (viewMode === 2);
+  flashStatus(['textured', 'wireframe', 'textured + wireframe overlay'][viewMode]);
 }
 
 // PointerLock UI
@@ -168,12 +203,28 @@ loader.load(
         if (tex) tex.colorSpace = THREE.SRGBColorSpace;
         // Replace whatever PBR material trimesh exported with an unlit
         // basic material — the panorama already contains shading.
-        node.material = new THREE.MeshBasicMaterial({
+        const basic = new THREE.MeshBasicMaterial({
           map: tex,
           side: THREE.DoubleSide,
           toneMapped: false,
         });
+        node.material = basic;
+        savedMaterials.set(node, basic);
         sceneObjects.push(node);
+
+        // Wireframe overlay clone — used only in view-mode 2 (textured + wire).
+        const overlay = new THREE.Mesh(
+          node.geometry,
+          new THREE.MeshBasicMaterial({
+            color: 0xa3ffc6, wireframe: true,
+            transparent: true, opacity: 0.22,
+            depthWrite: false, depthTest: true,
+          })
+        );
+        overlay.visible = false;
+        overlay.renderOrder = 10;
+        node.add(overlay);
+        wireOverlays.push(overlay);
       }
     });
     scene.add(gltf.scene);
@@ -225,19 +276,44 @@ function tick() {
     if (right)   controls.moveRight  (right   * v * dt);
 
     if (flyMode) {
-      const up = (keys.Space      ? 1 : 0) - (keys.ShiftLeft ? 1 : 0);
+      const up = (keys.Space ? 1 : 0) - (keys.ShiftLeft ? 1 : 0);
       if (up) controls.getObject().position.y += up * v * dt;
     } else if (sceneObjects.length) {
-      // ground-snap raycast straight down from a point slightly above camera
+      // walk mode: gravity + jump + ground snap
       const pos = controls.getObject().position;
-      raycaster.set(new THREE.Vector3(pos.x, pos.y + 0.3, pos.z), downVec);
-      raycaster.far = 50;
+
+      // Jump trigger (only if currently grounded)
+      if (grounded && keys.Space) {
+        yVel = JUMP_V; grounded = false;
+      }
+
+      // Apply gravity if airborne
+      if (!grounded) {
+        yVel -= GRAVITY * dt;
+        pos.y += yVel * dt;
+      }
+
+      // Raycast straight down to find ground at our XZ
+      raycaster.set(new THREE.Vector3(pos.x, pos.y + 50, pos.z), downVec);
+      raycaster.far = 200;
       const hits = raycaster.intersectObjects(sceneObjects, true);
       if (hits.length) {
-        // pick the closest hit below us, snap eye to ground + eyeHeight
         const groundY = hits[0].point.y;
-        pos.y = groundY + 1.6;     // eye height above the snapped ground
+        const standY  = groundY + EYE_H;
+        if (grounded) {
+          // Stick to ground while walking (handles slopes / depth bumps).
+          pos.y = standY;
+        } else if (pos.y <= standY && yVel <= 0) {
+          // Landing
+          pos.y = standY; yVel = 0; grounded = true;
+        }
+      } else {
+        // No mesh below — we're off the edge or in a hole; keep falling.
+        grounded = false;
       }
+
+      // Safety: fell too far → reset to origin
+      if (pos.y < -200) resetCamera();
     }
   }
 
