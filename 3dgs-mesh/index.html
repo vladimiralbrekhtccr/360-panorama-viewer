@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>world-models · panorama → mesh walker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #ddd;
+    font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow: hidden; }
+  #app { position: fixed; inset: 0; cursor: crosshair; }
+  #hud  { position: fixed; top: 12px; left: 14px; padding: 10px 12px;
+    background: rgba(0,0,0,.6); border: 1px solid #2a2a2a; border-radius: 4px;
+    pointer-events: none; max-width: 84vw; }
+  #hud b   { color: #fff; }
+  #hud kbd { background: #232323; border: 1px solid #3a3a3a; border-radius: 3px;
+    padding: 0 4px; font-family: inherit; font-size: 12px; }
+  #hud a   { color: #6fa; }
+  #status  { position: fixed; bottom: 10px; left: 14px;
+    background: rgba(0,0,0,.55); border: 1px solid #2a2a2a;
+    border-radius: 4px; padding: 6px 10px; pointer-events: none;
+    font-size: 12px; opacity: 0; transition: opacity 0.2s; }
+  #status.show { opacity: 1; }
+  #overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10; cursor: pointer; backdrop-filter: blur(3px);
+  }
+  #overlay .card {
+    background: #111418; border: 1px solid #2a2a2a; border-radius: 8px;
+    padding: 24px 28px; max-width: 480px; text-align: center;
+  }
+  #overlay h2 { margin: 0 0 8px; font-size: 18px; font-weight: 700;
+    font-family: ui-sans-serif, system-ui, sans-serif; color: #fff; }
+  #overlay p  { margin: 6px 0; color: #aaa; font-size: 13px; line-height: 1.55; }
+  #overlay .btn {
+    display: inline-block; margin-top: 14px; padding: 10px 22px;
+    background: #6fa; color: #000; border-radius: 4px;
+    font-weight: 700; font-family: ui-sans-serif, sans-serif; font-size: 14px;
+  }
+  #crosshair {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 8px; height: 8px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.45); pointer-events: none;
+    display: none;
+  }
+  #crosshair.show { display: block; }
+  .loading-bar {
+    position: fixed; bottom: 0; left: 0; height: 2px; background: #6fa;
+    width: 0%; transition: width 0.15s; z-index: 20;
+  }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="crosshair"></div>
+<div id="hud">
+  <b>panorama → walkable mesh</b> · DepthAnything-V2 depth shell + panorama texture<br>
+  <kbd>click</kbd> to lock mouse · <kbd>WASD</kbd> move · <kbd>Space</kbd> up · <kbd>Shift</kbd> down ·
+  <kbd>F</kbd> fly/walk · <kbd>R</kbd> reset · <kbd>Esc</kbd> release ·
+  <a href="../3dgs/">splat version</a> · <a href="https://github.com/vladimiralbrekhtccr/world-models">repo</a>
+</div>
+<div id="status"></div>
+
+<div id="overlay">
+  <div class="card">
+    <h2>panorama → walkable 3D</h2>
+    <p>One image, monocular depth, equirectangular mesh.<br>The "ground" is hallucinated — wandering far from the spawn reveals depth-skirts and the seam.</p>
+    <p style="color: #888; font-size: 12px;">Loading scene…</p>
+    <div class="btn" id="enter-btn" style="opacity: 0.4; pointer-events: none;">click to enter</div>
+  </div>
+</div>
+<div class="loading-bar" id="loading-bar"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three":         "https://esm.sh/three@0.160.0",
+    "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader }          from 'three/addons/loaders/GLTFLoader.js';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+const app       = document.getElementById('app');
+const overlay   = document.getElementById('overlay');
+const enterBtn  = document.getElementById('enter-btn');
+const crosshair = document.getElementById('crosshair');
+const statusEl  = document.getElementById('status');
+const loadingBar= document.getElementById('loading-bar');
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.02, 200);
+camera.position.set(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const controls = new PointerLockControls(camera, renderer.domElement);
+scene.add(controls.getObject());
+
+// Keys
+const keys = {};
+addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyF') toggleFly(); if (e.code === 'KeyR') resetCamera(); });
+addEventListener('keyup',   e => { keys[e.code] = false; });
+addEventListener('resize',  () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// Movement state
+let flyMode   = false;
+let meshLoaded = false;
+let sceneObjects = [];
+
+const speed     = 2.4;        // m/s walking
+const flySpeed  = 4.0;        // m/s fly
+const eyeHeight = 0.0;        // we spawn at origin (~original camera height)
+const raycaster = new THREE.Raycaster();
+const downVec   = new THREE.Vector3(0, -1, 0);
+
+function flashStatus(msg, ttl = 1200) {
+  statusEl.textContent = msg;
+  statusEl.classList.add('show');
+  clearTimeout(flashStatus._t);
+  flashStatus._t = setTimeout(() => statusEl.classList.remove('show'), ttl);
+}
+function toggleFly() {
+  flyMode = !flyMode;
+  flashStatus(flyMode ? 'fly mode' : 'walk mode (raycast snap)');
+}
+function resetCamera() {
+  camera.position.set(0, 0, 0);
+  controls.getObject().rotation.set(0, 0, 0);
+  camera.rotation.set(0, 0, 0);
+  flashStatus('reset to origin');
+}
+
+// PointerLock UI
+overlay.addEventListener('click', () => { if (meshLoaded) controls.lock(); });
+controls.addEventListener('lock',   () => { overlay.style.display = 'none'; crosshair.classList.add('show'); });
+controls.addEventListener('unlock', () => {
+  overlay.style.display = 'flex'; crosshair.classList.remove('show');
+  overlay.querySelector('h2').textContent = 'paused';
+  overlay.querySelector('.card p').textContent = 'press click to resume.';
+  enterBtn.textContent = 'resume';
+});
+
+// Load scene.glb
+const loader = new GLTFLoader();
+loader.load(
+  'scene.glb',
+  (gltf) => {
+    gltf.scene.traverse(node => {
+      if (node.isMesh) {
+        const tex = node.material.map;
+        if (tex) tex.colorSpace = THREE.SRGBColorSpace;
+        // Replace whatever PBR material trimesh exported with an unlit
+        // basic material — the panorama already contains shading.
+        node.material = new THREE.MeshBasicMaterial({
+          map: tex,
+          side: THREE.DoubleSide,
+          toneMapped: false,
+        });
+        sceneObjects.push(node);
+      }
+    });
+    scene.add(gltf.scene);
+    meshLoaded = true;
+    loadingBar.style.width = '100%';
+    setTimeout(() => loadingBar.style.display = 'none', 600);
+    overlay.querySelector('.card h2').textContent = 'ready';
+    overlay.querySelector('.card p').innerHTML =
+      'WASD to move · mouse to look · F to fly · R to reset.<br><span style="color:#888;font-size:12px;">' +
+      Math.round(node_count(gltf.scene).verts/1000) + 'k verts loaded · click to enter.</span>';
+    enterBtn.style.opacity = 1;
+    enterBtn.style.pointerEvents = 'auto';
+  },
+  (xhr) => {
+    if (xhr.lengthComputable) {
+      loadingBar.style.width = (xhr.loaded / xhr.total * 100) + '%';
+    }
+  },
+  (err) => {
+    overlay.querySelector('.card h2').textContent = 'load failed';
+    overlay.querySelector('.card p').textContent = String(err);
+  }
+);
+
+function node_count(root) {
+  let verts = 0, tris = 0;
+  root.traverse(n => {
+    if (n.isMesh && n.geometry) {
+      verts += n.geometry.attributes.position?.count || 0;
+      if (n.geometry.index) tris += n.geometry.index.count / 3;
+    }
+  });
+  return {verts, tris};
+}
+
+// Main loop
+const clock = new THREE.Clock();
+const tmpDir = new THREE.Vector3();
+
+function tick() {
+  const dt = Math.min(0.05, clock.getDelta());
+
+  if (controls.isLocked && meshLoaded) {
+    const forward = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+    const right   = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+    const v = flyMode ? flySpeed : speed;
+
+    if (forward) controls.moveForward(forward * v * dt);
+    if (right)   controls.moveRight  (right   * v * dt);
+
+    if (flyMode) {
+      const up = (keys.Space      ? 1 : 0) - (keys.ShiftLeft ? 1 : 0);
+      if (up) controls.getObject().position.y += up * v * dt;
+    } else if (sceneObjects.length) {
+      // ground-snap raycast straight down from a point slightly above camera
+      const pos = controls.getObject().position;
+      raycaster.set(new THREE.Vector3(pos.x, pos.y + 0.3, pos.z), downVec);
+      raycaster.far = 50;
+      const hits = raycaster.intersectObjects(sceneObjects, true);
+      if (hits.length) {
+        // pick the closest hit below us, snap eye to ground + eyeHeight
+        const groundY = hits[0].point.y;
+        pos.y = groundY + 1.6;     // eye height above the snapped ground
+      }
+    }
+  }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+</body>
+</html>
