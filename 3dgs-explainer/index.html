@@ -131,6 +131,20 @@ strong { color: var(--text); }
 .note-orange { background: var(--orange-bg); border-color: #fde68a; }
 .note-orange strong { color: var(--orange); }
 
+/* Overview figure */
+figure.overview {
+  margin: 22px 0 32px; padding: 0;
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  background: #fdfdfd;
+}
+figure.overview img { display: block; width: 100%; height: auto; }
+figure.overview figcaption {
+  font-family: var(--font-ui); font-size: 12.5px; color: var(--text-3);
+  padding: 10px 14px; border-top: 1px solid var(--border);
+  background: #fafafa; line-height: 1.5;
+}
+figure.overview figcaption strong { color: var(--text); }
+
 pre.codeblock {
   background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px;
   padding: 16px 20px; font-family: var(--font-mono); font-size: 13px; line-height: 1.65;
@@ -432,6 +446,11 @@ mark.ann.resolved { background: #e5e7eb; color: var(--text-3); text-decoration: 
     <div class="abstract-label">The whole thing in one paragraph</div>
     <p>3D Gaussian Splatting represents a scene as a cloud of <strong>3D Gaussians</strong> — each one a "soft blob" with a position, an ellipsoidal shape, a color, and an opacity. To render the scene, every Gaussian is projected to the camera as a 2D Gaussian splat and alpha-blended into the image. To <em>train</em> the scene, gradient descent nudges the parameters of every Gaussian so the rendered images match the real photos. Once trained, novel views are produced by re-projecting the same Gaussians from a new camera — fast enough for 100+ FPS rendering.</p>
   </div>
+
+  <figure class="overview">
+    <img src="infographic.png" alt="3DGS infographic — six panels: (1) a Gaussian is a 3D ellipsoid defined by μ, Σ, c, α; (2) splatting projects the 3D blob to a 2D Gaussian on pixels; (3) thousands of Gaussians make a scene; (4) training loop initialise → render → compare → optimise; (5) what gets optimised — position, covariance, colour, opacity; (6) training over time, from step 0 noise to step 15000+ clean">
+    <figcaption><strong>The whole thing at a glance.</strong> Six panels: (1) a Gaussian is a 3D ellipsoid with μ, Σ, c, α; (2) projection makes it a 2D Gaussian splat on the image plane; (3) thousands of them alpha-blend to form the scene; (4) the train loop is initialise → render → compare → optimise, repeated; (5) each Gaussian's position, covariance, colour, and opacity all get updated; (6) random noise gradually resolves into clean surfaces over ~15k steps. The sections below walk through each panel with interactive widgets.</figcaption>
+  </figure>
 
   <h2><span class="sn">1</span> What is a Gaussian in 3DGS?</h2>
 
@@ -1316,18 +1335,43 @@ mark.ann.resolved { background: #e5e7eb; color: var(--text-3); text-decoration: 
 //  Download HTML — save the current page as a self-contained file
 // ════════════════════════════════════════════════════════════════════
 (function () {
-  function download() {
-    const doctype = '<!DOCTYPE html>\n';
-    const html = doctype + document.documentElement.outerHTML;
+  const btn = document.getElementById('btn-download');
+  const link = document.getElementById('download-btn');
+
+  async function blobToDataUrl(blob) {
+    return new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.onerror = rej;
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  async function download() {
+    btn.textContent = '⏳ Inlining image…';
+    btn.disabled = true;
+    let html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    // Inline infographic.png as base64 so the downloaded file is self-contained.
+    try {
+      const r = await fetch('infographic.png');
+      if (r.ok) {
+        const dataUrl = await blobToDataUrl(await r.blob());
+        html = html.replace(/src="infographic\.png"/g, `src="${dataUrl}"`);
+      }
+    } catch (e) { /* fall back to a relative reference */ }
+
     const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = '3dgs-explainer.html';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    btn.textContent = '✓ Downloaded';
+    setTimeout(() => { btn.textContent = '⬇ Download HTML'; btn.disabled = false; }, 1500);
   }
-  document.getElementById('btn-download').addEventListener('click', download);
-  document.getElementById('download-btn').addEventListener('click', e => { e.preventDefault(); download(); });
+
+  btn.addEventListener('click', download);
+  link.addEventListener('click', e => { e.preventDefault(); download(); });
 })();
 
 // ════════════════════════════════════════════════════════════════════
