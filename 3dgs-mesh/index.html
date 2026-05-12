@@ -197,36 +197,40 @@ const loader = new GLTFLoader();
 loader.load(
   'scene.glb',
   (gltf) => {
-    gltf.scene.traverse(node => {
-      if (node.isMesh) {
-        const tex = node.material.map;
-        if (tex) tex.colorSpace = THREE.SRGBColorSpace;
-        // Replace whatever PBR material trimesh exported with an unlit
-        // basic material — the panorama already contains shading.
-        const basic = new THREE.MeshBasicMaterial({
-          map: tex,
-          side: THREE.DoubleSide,
-          toneMapped: false,
-        });
-        node.material = basic;
-        savedMaterials.set(node, basic);
-        sceneObjects.push(node);
+    // Collect first, mutate after — otherwise traverse() re-visits the
+    // wireframe child we just added, sees it's a Mesh, adds another, ∞.
+    const meshNodes = [];
+    gltf.scene.traverse(n => { if (n.isMesh) meshNodes.push(n); });
 
-        // Wireframe overlay clone — used only in view-mode 2 (textured + wire).
-        const overlay = new THREE.Mesh(
-          node.geometry,
-          new THREE.MeshBasicMaterial({
-            color: 0xa3ffc6, wireframe: true,
-            transparent: true, opacity: 0.22,
-            depthWrite: false, depthTest: true,
-          })
-        );
-        overlay.visible = false;
-        overlay.renderOrder = 10;
-        node.add(overlay);
-        wireOverlays.push(overlay);
-      }
-    });
+    for (const node of meshNodes) {
+      const tex = node.material.map;
+      if (tex) tex.colorSpace = THREE.SRGBColorSpace;
+      // Replace whatever PBR material trimesh exported with an unlit
+      // basic material — the panorama already contains shading.
+      const basic = new THREE.MeshBasicMaterial({
+        map: tex,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      });
+      node.material = basic;
+      savedMaterials.set(node, basic);
+      sceneObjects.push(node);
+
+      // Wireframe overlay clone — used only in view-mode 2 (textured + wire).
+      const overlay = new THREE.Mesh(
+        node.geometry,
+        new THREE.MeshBasicMaterial({
+          color: 0xa3ffc6, wireframe: true,
+          transparent: true, opacity: 0.22,
+          depthWrite: false, depthTest: true,
+        })
+      );
+      overlay.visible = false;
+      overlay.renderOrder = 10;
+      overlay.userData.isOverlay = true;     // mark so raycaster can skip
+      node.add(overlay);
+      wireOverlays.push(overlay);
+    }
     scene.add(gltf.scene);
     meshLoaded = true;
     loadingBar.style.width = '100%';
@@ -252,7 +256,7 @@ loader.load(
 function node_count(root) {
   let verts = 0, tris = 0;
   root.traverse(n => {
-    if (n.isMesh && n.geometry) {
+    if (n.isMesh && n.geometry && !n.userData.isOverlay) {
       verts += n.geometry.attributes.position?.count || 0;
       if (n.geometry.index) tris += n.geometry.index.count / 3;
     }
