@@ -131,6 +131,29 @@ strong { color: var(--text); }
 .note-orange { background: var(--orange-bg); border-color: #fde68a; }
 .note-orange strong { color: var(--orange); }
 
+/* Training video figure */
+figure.training-video {
+  margin: 22px 0 26px; padding: 0;
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  background: #0e1118;
+}
+figure.training-video video {
+  display: block; width: 100%; height: auto;
+  background: #0e1118;
+}
+figure.training-video figcaption {
+  font-family: var(--font-ui); font-size: 12.5px; color: var(--text-3);
+  padding: 10px 14px; border-top: 1px solid #1f2230;
+  background: #15171f; line-height: 1.5;
+}
+figure.training-video figcaption strong { color: #eee; }
+figure.training-video figcaption .badge {
+  display: inline-block; padding: 2px 7px; border-radius: 3px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  background: var(--accent); color: #fff; margin-right: 8px;
+  letter-spacing: 0.6px;
+}
+
 /* Overview figure */
 figure.overview {
   margin: 22px 0 32px; padding: 0;
@@ -606,7 +629,14 @@ mark.ann.resolved { background: #e5e7eb; color: var(--text-3); text-decoration: 
 
   <h2><span class="sn">6</span> Training over time</h2>
 
-  <p>As optimization progresses, the Gaussians arrange themselves into surfaces and details emerge. Slide through the training timeline below to see how a noisy cloud at step 0 becomes a coherent scene by step 15&nbsp;000+.</p>
+  <p>As optimization progresses, the Gaussians arrange themselves into surfaces and details emerge. The 6-second clip below is a procedurally-rendered animation of that convergence: 480 Gaussians starting at random positions, drifting toward a target shape (a torus + a cube), tightening their splat radii, and locking in their colours, with the camera orbiting around them. The slider after it lets you scrub through the same idea by hand.</p>
+
+  <figure class="training-video">
+    <video src="training.mp4" autoplay loop muted playsinline preload="metadata"></video>
+    <figcaption><span class="badge">rendered</span><strong>Random init → trained scene, 6 s loop.</strong> Each blob is a 2D Gaussian splat alpha-blended back-to-front. Splats start large, opaque, and grey; they end small, locked to the target geometry, and rainbow-coloured by their azimuth. Rendered in pure Python (numpy + Pillow) — the script lives in the <a href="https://github.com/vladimiralbrekhtccr/world-models/blob/main/3DGS/render_gaussian_video.py">world-models repo</a>.</figcaption>
+  </figure>
+
+  <p>Below: a manual version of the same idea. Drag the slider to scrub from step 0 to step 15&nbsp;000+.</p>
 
   <section class="progression">
     <div class="prog-canvas-wrap"><canvas id="prog-canvas" width="640" height="280"></canvas></div>
