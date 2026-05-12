@@ -159,7 +159,7 @@ function toggleFly() {
 function resetCamera() {
   controls.getObject().position.set(0, 0, 0);
   camera.rotation.set(0, 0, 0);
-  yVel = 0; grounded = false;  // let walk-mode snap us back to the floor
+  yVel = 0; grounded = true;   // walk-mode will instantly snap to the floor below
   flashStatus('reset to origin');
 }
 function cycleViewMode() {
@@ -297,10 +297,12 @@ function tick() {
         pos.y += yVel * dt;
       }
 
-      // Raycast straight down to find ground at our XZ
-      raycaster.set(new THREE.Vector3(pos.x, pos.y + 50, pos.z), downVec);
+      // Raycast straight down from just above the camera. Starting from
+      // pos.y + 0.3 keeps us *inside* the depth shell so the first hit is
+      // the surface beneath our feet — not the sky above.
+      raycaster.set(new THREE.Vector3(pos.x, pos.y + 0.3, pos.z), downVec);
       raycaster.far = 200;
-      const hits = raycaster.intersectObjects(sceneObjects, true);
+      const hits = raycaster.intersectObjects(sceneObjects, false);
       if (hits.length) {
         const groundY = hits[0].point.y;
         const standY  = groundY + EYE_H;
@@ -311,13 +313,13 @@ function tick() {
           // Landing
           pos.y = standY; yVel = 0; grounded = true;
         }
-      } else {
-        // No mesh below — we're off the edge or in a hole; keep falling.
-        grounded = false;
       }
+      // If no hit, do NOT unground — staying put on the previous floor is
+      // safer than falling into the void at a stray seam pixel. Gravity
+      // already runs while genuinely airborne (post-jump).
 
-      // Safety: fell too far → reset to origin
-      if (pos.y < -200) resetCamera();
+      // Safety: fell out of the world → snap back to spawn
+      if (pos.y < -50) resetCamera();
     }
   }
 
