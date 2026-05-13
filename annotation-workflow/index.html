@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Annotation workflow — review AI-generated docs with Claude Code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,500;0,700;1,400&family=DM+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --text: #111; --text-2: #3a3a3a; --text-3: #777;
+  --accent: #7c3aed; --accent-bg: #faf5ff;
+  --bg: #fff; --border: #e0e0e0; --code-bg: #f4f4f8;
+  --green:  #15803d; --green-bg:  #f0fdf4;
+  --red:    #b91c1c; --red-bg:    #fef2f2;
+  --orange: #c2410c; --orange-bg: #fffbeb;
+  --blue:   #1d4ed8; --blue-bg:   #eff6ff;
+  --yellow-mark: #fff3a0;
+  --font-body: 'Literata', Georgia, serif;
+  --font-ui:   'DM Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font-body); font-size: 16.5px; line-height: 1.78;
+}
+
+.layout { display: grid; grid-template-columns: 240px minmax(0, 1fr) 320px; gap: 0; }
+.paper  { max-width: 880px; margin: 0 auto; padding: 56px 40px 120px; }
+
+.toc {
+  border-right: 1px solid var(--border); background: #fbfbfd;
+  padding: 56px 18px 24px 22px; position: sticky; top: 0; height: 100vh;
+  overflow-y: auto; font-family: var(--font-ui); font-size: 13px;
+}
+.toc h3 {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-3);
+  margin: 0 0 12px; padding: 0; border: none;
+}
+.toc nav { display: flex; flex-direction: column; gap: 2px; }
+.toc a {
+  color: var(--text-2); text-decoration: none; border: none;
+  padding: 4px 8px; border-radius: 4px; line-height: 1.35;
+  border-left: 2px solid transparent;
+}
+.toc a:hover { background: var(--accent-bg); color: var(--accent); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-bg); }
+.toc .toc-num { color: var(--accent); margin-right: 6px; font-family: var(--font-mono); font-size: 11.5px; }
+
+.sidebar {
+  border-left: 1px solid var(--border); background: #fbfbfd;
+  padding: 28px 22px 0; position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column;
+  font-family: var(--font-ui); font-size: 13.5px;
+}
+.sidebar-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+.sidebar-footer {
+  border-top: 1px solid var(--border); margin: 0 -22px; padding: 10px 16px 12px;
+  background: #f5f5f9;
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  font-size: 11.5px;
+}
+.sidebar-footer .status {
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3);
+  width: 100%; margin-bottom: 4px;
+}
+.sidebar-footer button, .sidebar-footer .file-btn {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 600;
+  background: #fff; border: 1px solid var(--border); border-radius: 4px;
+  padding: 4px 8px; cursor: pointer; color: var(--text-2);
+}
+.sidebar-footer button:hover, .sidebar-footer .file-btn:hover {
+  background: var(--accent-bg); color: var(--accent); border-color: var(--accent);
+}
+
+p { text-align: justify; }
+p, ul, ol { margin: 0 0 14px; }
+ul, ol { padding-left: 22px; }
+li { margin-bottom: 6px; }
+
+h1 { font-family: var(--font-body); font-size: 30px; font-weight: 700;
+     line-height: 1.3; margin: 0 0 6px; }
+h2 { font-family: var(--font-ui); font-size: 21px; font-weight: 700;
+     margin: 40px 0 16px; padding-bottom: 6px; border-bottom: 1px solid #eee; }
+h3 { font-family: var(--font-ui); font-size: 17px; font-weight: 700; margin: 24px 0 10px; }
+h4 { font-family: var(--font-ui); font-size: 15.5px; font-weight: 700; margin: 16px 0 8px; }
+.sn { color: var(--accent); margin-right: 4px; }
+a  { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-bg); }
+a:hover { border-bottom-color: var(--accent); }
+code, .mono { font-family: var(--font-mono); font-size: 0.92em; background: var(--code-bg);
+              padding: 1px 5px; border-radius: 3px; color: var(--text-2); }
+strong { color: var(--text); }
+
+.crumbs {
+  font-family: var(--font-ui); font-size: 12.5px; color: var(--text-3);
+  margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+  letter-spacing: 0.3px; flex-wrap: wrap;
+}
+.crumbs a { color: var(--text-3); border-bottom: 1px solid transparent; }
+.crumbs a:hover { color: var(--accent); border-bottom-color: var(--accent-bg); }
+.crumbs .sep { color: #ccc; }
+.crumbs .gh-link { margin-left: auto; }
+
+.title-block { margin-bottom: 28px; }
+.draft-tag { display: inline-block; background: var(--accent-bg); color: var(--accent);
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; padding: 4px 10px; border: 1px solid var(--accent);
+  border-radius: 3px; margin-bottom: 14px; }
+.tagline { font-style: italic; color: var(--text-2); font-size: 17px;
+  margin: 6px 0 14px; text-align: left; }
+.meta-line { font-family: var(--font-ui); font-size: 13px; color: var(--text-3);
+  margin: 0; text-align: left; }
+.meta-line span { margin: 0 8px; }
+
+.abstract { background: #fafbfe; border-left: 3px solid var(--accent);
+  padding: 16px 22px; margin: 28px 0 40px; border-radius: 0 6px 6px 0; }
+.abstract-label { font-family: var(--font-ui); font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 6px; }
+.abstract p { margin: 0; text-align: left; font-size: 15.5px; color: var(--text-2); }
+
+.note-box { border-radius: 6px; padding: 16px 20px; font-size: 15px;
+  line-height: 1.7; margin: 18px 0; border-style: solid; border-width: 1px; }
+.note-box p { text-align: left; margin: 0; }
+.note-box p + p { margin-top: 10px; }
+.note-purple { background: var(--accent-bg); border-color: #c4b5fd; }
+.note-purple strong { color: var(--accent); }
+.note-blue   { background: var(--blue-bg);   border-color: #93c5fd; }
+.note-blue strong   { color: var(--blue); }
+.note-orange { background: var(--orange-bg); border-color: #fde68a; }
+.note-orange strong { color: var(--orange); }
+.note-green  { background: var(--green-bg);  border-color: #86efac; }
+.note-green strong  { color: var(--green); }
+
+pre.codeblock {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px;
+  padding: 16px 20px; font-family: var(--font-mono); font-size: 13px; line-height: 1.65;
+  overflow-x: auto; white-space: pre; color: var(--text-2); margin: 14px 0 18px;
+}
+pre.codeblock .k { color: var(--accent); }      /* key */
+pre.codeblock .s { color: var(--green); }       /* string */
+pre.codeblock .n { color: var(--orange); }      /* number */
+pre.codeblock .c { color: var(--text-3); font-style: italic; }  /* comment */
+
+/* Step cards */
+.steps {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 12px; margin: 18px 0;
+}
+.step-card {
+  background: #fafbfe; border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px 16px;
+}
+.step-num {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.2px; color: var(--accent);
+  margin-bottom: 4px;
+}
+.step-card h4 { margin: 0 0 6px; font-size: 14.5px; }
+.step-card p { margin: 0; text-align: left; font-size: 13.5px;
+  color: var(--text-2); line-height: 1.55; }
+
+/* Example annotation preview */
+.example-pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 18px 0;
+}
+.example-side {
+  border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+  font-size: 13.5px; background: #fafbfe;
+}
+.example-side h5 {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--text-3); margin: 0 0 8px;
+}
+.example-side.from h5 { color: var(--orange); }
+.example-side.to   h5 { color: var(--green); }
+.example-quote {
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-3);
+  background: var(--code-bg); border-left: 2px solid var(--accent);
+  padding: 6px 8px; margin-bottom: 6px; line-height: 1.5;
+}
+.example-comment { color: var(--text); font-family: var(--font-ui); font-size: 13px; }
+
+/* Annotation system (same as other docs) */
+.annotatable { position: relative; }
+mark.ann {
+  background: var(--yellow-mark); padding: 1px 2px; border-radius: 2px;
+  cursor: pointer; transition: background 0.15s;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.04);
+}
+mark.ann:hover { background: #ffec55; }
+mark.ann.resolved { background: #e5e7eb; color: var(--text-3); text-decoration: line-through; }
+
+.add-pill {
+  position: absolute; z-index: 55;
+  background: var(--accent); color: #fff;
+  font-family: var(--font-ui); font-size: 12px; font-weight: 700;
+  border: none; padding: 4px 10px; border-radius: 14px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.add-pill:hover { background: #6925d6; }
+
+.ann-popover {
+  position: absolute; z-index: 60;
+  background: #fff; border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+  padding: 10px; width: 320px; font-family: var(--font-ui); font-size: 13.5px;
+}
+.ann-popover textarea {
+  width: 100%; min-height: 70px; resize: vertical; padding: 8px;
+  border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-ui);
+  font-size: 13.5px; line-height: 1.5; box-sizing: border-box;
+}
+.ann-popover textarea:focus { outline: none; border-color: var(--accent); }
+.ann-popover .ann-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.ann-popover button {
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+  padding: 4px 10px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border);
+  background: #fff; color: var(--text-2);
+}
+.ann-popover button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.ann-popover button.danger  { color: var(--red); border-color: #fca5a5; }
+.ann-popover button.success { color: var(--green); border-color: #86efac; }
+.ann-popover .ann-quote {
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3);
+  background: var(--code-bg); border-left: 2px solid var(--accent);
+  padding: 6px 8px; margin-bottom: 8px; max-height: 60px; overflow-y: auto;
+}
+
+.sidebar h3 { font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--text-3); margin: 18px 0 10px; padding: 0; border: none; }
+.sidebar h3:first-child { margin-top: 0; }
+.ann-item {
+  border: 1px solid var(--border); border-radius: 5px; background: #fff;
+  padding: 9px 10px; margin-bottom: 8px; font-size: 13px; line-height: 1.5;
+  cursor: pointer; transition: border-color 0.15s;
+}
+.ann-item:hover { border-color: var(--accent); }
+.ann-item.resolved { opacity: 0.55; }
+.ann-item .ann-q { font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+  border-left: 2px solid var(--accent); padding-left: 6px; margin-bottom: 4px;
+  max-height: 36px; overflow: hidden; }
+.ann-item .ann-c { color: var(--text); font-family: var(--font-ui); }
+.ann-item .ann-meta { font-size: 10.5px; color: var(--text-3); margin-top: 4px;
+  display: flex; justify-content: space-between; }
+.empty { color: var(--text-3); font-style: italic; font-size: 13px;
+  padding: 12px 8px; text-align: center; }
+
+.dl-pill {
+  background: var(--accent) !important; color: #fff !important;
+  border-color: var(--accent) !important; font-weight: 700 !important;
+}
+.dl-pill:hover { background: #6925d6 !important; }
+
+@media (max-width: 1400px) {
+  .layout { grid-template-columns: 200px minmax(0, 1fr) 300px; }
+  .toc { padding: 48px 14px 24px 18px; font-size: 12px; }
+}
+@media (max-width: 1180px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 300px; }
+  .toc { display: none; }
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto;
+             border-left: none; border-top: 1px solid var(--border); }
+  .sidebar-scroll { max-height: 320px; }
+  .steps, .example-pair { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .paper { padding: 24px 16px 100px; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<aside class="toc">
+  <h3>Contents</h3>
+  <nav id="toc-nav"></nav>
+</aside>
+
+<div class="paper annotatable" id="paper">
+
+  <div class="crumbs">
+    <a href="../">← panorama viewer</a>
+    <span class="sep">·</span>
+    <a href="../3dgs-explainer/">3DGS explainer</a>
+    <span class="sep">·</span>
+    <a href="../3dgs/">splat demo</a>
+    <span class="sep">·</span>
+    <a href="../3dgs-mesh/">walkable mesh</a>
+    <span class="gh-link"><a href="https://github.com/vladimiralbrekhtccr/360-panorama-viewer" target="_blank">repo ↗</a></span>
+  </div>
+
+  <div class="title-block">
+    <div class="draft-tag">workflow · draft</div>
+    <h1>Inline annotations → Claude Code</h1>
+    <p class="tagline">A pattern for reviewing AI-generated docs without copy-pasting whole paragraphs back to the model.</p>
+    <p class="meta-line">~5 min read <span>·</span> select any text below to leave a comment <span>·</span> <a href="#" id="download-btn">download this page</a></p>
+  </div>
+
+  <div class="abstract">
+    <div class="abstract-label">The whole idea in one paragraph</div>
+    <p>When Claude writes a long doc or design, the natural review step is reading it and noting what's wrong, in-place. Saying that back over chat ("in the third paragraph of section 2…") is slow and lossy. Instead: open the doc as an HTML page with an inline-annotation overlay; <strong>highlight any phrase, leave a comment</strong>; the comments stay in your browser; when you're done, click <strong>Copy</strong> and paste the JSON back into Claude Code. Claude then knows exactly which phrase each note refers to and can address every annotation in one pass.</p>
+  </div>
+
+  <h2><span class="sn">1</span> The problem</h2>
+  <p>A typical Claude Code workflow produces long, well-structured Markdown (design docs, project plans, API specs). Reading them critically and giving structured feedback is harder than it looks:</p>
+  <ul>
+    <li>Pointing at a specific sentence over chat means either pasting the surrounding paragraph or describing the location ("in §3, the second bullet…"). Both are friction.</li>
+    <li>Multiple small notes scattered across the document don't batch well — by the time you've quoted all the context, you've typed more than Claude.</li>
+    <li>Without anchors, Claude can mis-target an edit and rewrite the wrong sentence.</li>
+  </ul>
+  <p>The annotation HTML pattern fixes all three.</p>
+
+  <h2><span class="sn">2</span> What the annotation HTML is</h2>
+  <p>A <strong>single self-contained HTML file</strong> that renders the same content as the underlying Markdown, plus three pieces of UI: a "+ Comment" pill that appears on text selection, a popover for writing the comment, and a side panel that lists every comment. Comments are anchored to the exact phrase that was selected — the <em>quote</em> — and stored in the visitor's browser only (<code>localStorage</code>). Nothing leaves the browser unless the visitor clicks Export, Copy, or Download.</p>
+
+  <div class="note-box note-purple">
+    <p><strong>The HTML is the artifact you share.</strong> Drop the file into a GitHub Pages folder, scp it to a colleague, or just open it locally — every reader gets the same annotation UI, with their own comment list. Their comments never reach you (or anyone else) until they actively send the JSON back.</p>
+  </div>
+
+  <h2><span class="sn">3</span> The annotator's workflow</h2>
+  <p>From the reader's perspective:</p>
+
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">① open</div>
+      <h4>Load the page</h4>
+      <p>HTTP, local file, GH Pages, IDE proxy — anything that serves the HTML.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">② select</div>
+      <h4>Highlight a phrase</h4>
+      <p>Any chunk of text in the doc. A purple "+ Comment" pill appears below the selection.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">③ comment</div>
+      <h4>Type the note</h4>
+      <p>Specific suggestions ("rename this to X"), open questions, or just "this is wrong, see <code>file.py:42</code>".</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">④ copy</div>
+      <h4>Click 📋 Copy</h4>
+      <p>All comments are formatted as JSON and put on the clipboard. Paste straight into Claude Code.</p>
+    </div>
+  </div>
+
+  <p>Optional buttons in the side panel: <strong>Export</strong> downloads the same JSON as a file; <strong>Import</strong> loads someone else's JSON; <strong>Hide resolved</strong> shrinks the noise once items are addressed; <strong>Clear all</strong> resets.</p>
+
+  <h2><span class="sn">4</span> The JSON format</h2>
+  <p>Every comment is one object. The full payload is:</p>
+
+<pre class="codeblock">{
+  "annotations": [
+    {
+      "id":      "amp15zxyfz4n",                       <span class="c">// stable per-comment, generated client-side</span>
+      "blockId": "b12",                                <span class="c">// which paragraph/heading was hit (internal anchor)</span>
+      "quote":   "the exact text that was highlighted",
+      "comment": "what the reader wants changed or asked",
+      "status":  "open",                                <span class="c">// or "resolved" once handled</span>
+      "ts":      1715000000000                          <span class="c">// epoch ms — useful for sorting</span>
+    }
+  ]
+}</pre>
+
+  <p>Two fields do all the load-bearing work:</p>
+  <ul>
+    <li><strong><code>quote</code></strong> — the exact substring of the source. Claude uses this to locate the right place in the file (a plain <code>grep</code> or string search; the quote is guaranteed to be a verbatim slice of the doc when it was annotated).</li>
+    <li><strong><code>comment</code></strong> — the natural-language instruction. Free-form. May be a question, a correction, or a directive.</li>
+  </ul>
+
+  <div class="note-box note-orange">
+    <p><strong>Caveat — drift.</strong> The <code>quote</code> is verbatim against the doc as the annotator saw it. If the doc has been edited since (e.g., Claude already rewrote it), the quote may not match anymore. In that case, fall back to the surrounding context in the comment, or ask the user to re-annotate the new version.</p>
+  </div>
+
+  <h2><span class="sn">5</span> How Claude Code should handle a paste</h2>
+  <p>When a chat message contains the annotations JSON (recognisable by the top-level <code>{"annotations":&nbsp;[...]}</code>), follow this procedure:</p>
+
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">① identify target</div>
+      <h4>Which file?</h4>
+      <p>Check the surrounding conversation for the source file path. If unclear, ask once.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">② locate each quote</div>
+      <h4>grep the source</h4>
+      <p>For each comment, search for the <code>quote</code> string in the target file. If it doesn't match exactly, search for the longest unique prefix.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">③ interpret intent</div>
+      <h4>What does it want?</h4>
+      <p>The <code>comment</code> is natural language. Decide whether it's an edit, a question, or a meta-note (e.g., "this whole section is unclear").</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">④ act + report</div>
+      <h4>Address & summarise</h4>
+      <p>Apply the edit (or ask for clarification). End with a tight summary: <em>"addressed N of M comments; flagged K as ambiguous."</em></p>
+    </div>
+  </div>
+
+  <p>Order of work matters less than order of <em>reply</em>: walk through the comments in document order, not JSON order, so the user can trace your response against the doc visually.</p>
+
+  <div class="note-box note-blue">
+    <p><strong>Don't silently rewrite outside the quoted span.</strong> Annotations are scoped suggestions. If the comment hints at a larger refactor, propose the wider change before doing it.</p>
+  </div>
+
+  <h2><span class="sn">6</span> Examples</h2>
+
+  <h4>Example 1 — a direct edit</h4>
+  <div class="example-pair">
+    <div class="example-side from">
+      <h5>JSON received</h5>
+      <div class="example-quote">"we will use Python 3.10"</div>
+      <div class="example-comment">make it 3.11, we standardised on that across the repo</div>
+    </div>
+    <div class="example-side to">
+      <h5>Claude's action</h5>
+      <div class="example-comment">grep <code>"we will use Python 3.10"</code> in the README; replace with <code>"3.11"</code>. Report: <em>"Done — README.md line 24."</em></div>
+    </div>
+  </div>
+
+  <h4>Example 2 — a question, not an edit</h4>
+  <div class="example-pair">
+    <div class="example-side from">
+      <h5>JSON received</h5>
+      <div class="example-quote">"map-derived poses are handed to the optimizer directly"</div>
+      <div class="example-comment">how robust is this if the generator wildly disagrees with the map?</div>
+    </div>
+    <div class="example-side to">
+      <h5>Claude's action</h5>
+      <div class="example-comment">No code change. Reply inline: explain the SDS regularizer falls back to refining poses; propose adding a clarifying paragraph if useful.</div>
+    </div>
+  </div>
+
+  <h4>Example 3 — meta / structural</h4>
+  <div class="example-pair">
+    <div class="example-side from">
+      <h5>JSON received</h5>
+      <div class="example-quote">"§4 The main risk"</div>
+      <div class="example-comment">this section is too short; expand on consistency mitigation #4</div>
+    </div>
+    <div class="example-side to">
+      <h5>Claude's action</h5>
+      <div class="example-comment">Locate §4 by heading text; rewrite the mitigation list to expand item 4 (diffusion regularizer) into 2–3 sentences with concrete loss-formulation hint.</div>
+    </div>
+  </div>
+
+  <h2><span class="sn">7</span> Producing an annotation HTML for any doc</h2>
+  <p>The HTMLs are templates: the chrome (TOC, annotation layer, sidebar, download) is constant; only the body content changes. To wrap a new Markdown doc:</p>
+  <ol>
+    <li>Copy an existing annotation-HTML page (e.g. <a href="../3dgs-explainer/">3dgs-explainer</a> or <a href="../">this one</a>).</li>
+    <li>Replace the content inside <code>&lt;div class="paper" id="paper"&gt;…&lt;/div&gt;</code> with the new doc, formatted as semantic HTML (h2/h3/p/ul/code…).</li>
+    <li>Update <code>&lt;title&gt;</code>, the <code>.draft-tag</code>, and the breadcrumb links.</li>
+    <li>If the doc references images, link to them relatively; for offline portability, base64-inline them in the Download HTML function (already implemented in the explainer template).</li>
+  </ol>
+  <p>The annotation JS handles itself: it auto-tags every <code>p</code>/<code>li</code>/<code>h2</code>/<code>h3</code>/<code>pre</code> with a <code>data-aid</code> so quotes can be resolved later.</p>
+
+  <h2><span class="sn">8</span> Future: a Claude Code skill</h2>
+  <p>Once the workflow is settled, the recognition step (<em>"this paste is an annotations JSON, here's what to do"</em>) becomes a skill — a SKILL.md file in <code>~/.claude/skills/</code> or a project's <code>.claude/skills/</code> that triggers on the JSON shape. The skill's body would be a tightened version of §5 above: identify the target file, grep each quote, interpret intent, address + report. Once the skill exists, Claude Code recognises annotation pastes automatically and follows the procedure without being prompted.</p>
+
+  <div class="note-box note-green">
+    <p><strong>This page is the design doc for that skill.</strong> Highlight anything that's wrong, ambiguous, or missing; the comments will become the spec. Once the spec settles, the skill itself is a near-mechanical translation.</p>
+  </div>
+
+  <p style="color: var(--text-3); font-size: 13px; margin-top: 32px;"><em>Highlight any text on this page to leave a comment. Comments stay in your browser (localStorage) — they're not uploaded anywhere. Use the side panel's <strong>📋 Copy</strong> button to grab them as JSON, or <strong>⬇ Download HTML</strong> at the bottom to save this whole page (with your annotations) as an offline HTML file.</em></p>
+
+</div>
+
+<aside class="sidebar">
+  <div class="sidebar-scroll">
+    <h3>Comments <span id="ann-count" style="color: var(--accent); float: right;"></span></h3>
+    <div id="ann-list"><div class="empty">No comments yet. Select any text in the document to add one.</div></div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="status" id="ann-status">Local storage · this browser only</div>
+    <button id="btn-copy" title="Copy all comments as JSON to clipboard">📋 Copy</button>
+    <button id="btn-export">Export</button>
+    <label class="file-btn" for="ann-import" style="cursor:pointer;">Import</label>
+    <input type="file" id="ann-import" accept="application/json" style="display:none">
+    <button id="btn-toggle-resolved">Hide resolved</button>
+    <button id="btn-clear">Clear all</button>
+    <button id="btn-download" class="dl-pill" title="Download this page as a self-contained HTML file">⬇ Download HTML</button>
+  </div>
+</aside>
+
+</div>
+
+<div class="add-pill" id="add-pill" style="display:none;">＋ Comment</div>
+
+<div class="ann-popover" id="ann-popover" style="display:none;">
+  <div class="ann-quote" id="popover-quote"></div>
+  <textarea id="popover-text" placeholder="What's worth flagging here?"></textarea>
+  <div class="ann-actions">
+    <button class="danger"  id="popover-del">Delete</button>
+    <button class="success" id="popover-resolve">Resolve</button>
+    <button id="popover-cancel">Cancel</button>
+    <button class="primary" id="popover-save">Save</button>
+  </div>
+</div>
+
+<script>
+// TOC builder + scroll-spy
+(function () {
+  const paper = document.getElementById('paper');
+  const nav   = document.getElementById('toc-nav');
+  const headings = paper.querySelectorAll('h2, h3');
+  headings.forEach((h, i) => {
+    if (!h.id) h.id = 'h-' + i;
+    const sn = h.querySelector('.sn');
+    const num = sn ? sn.textContent.trim() : '';
+    const clone = h.cloneNode(true);
+    const cloneSn = clone.querySelector('.sn');
+    if (cloneSn) cloneSn.remove();
+    const title = clone.textContent.trim();
+    const a = document.createElement('a');
+    a.href = '#' + h.id;
+    a.className = 'lvl-' + h.tagName.toLowerCase();
+    a.innerHTML = (num ? `<span class="toc-num">${num}</span>` : '') +
+      title.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      h.scrollIntoView({behavior: 'smooth', block: 'start'});
+      history.replaceState(null, '', '#' + h.id);
+    });
+    nav.appendChild(a);
+  });
+  const links = Array.from(nav.querySelectorAll('a'));
+  let active = -1;
+  function onScroll() {
+    const fromTop = window.scrollY + 120;
+    let idx = 0;
+    const hs = Array.from(headings);
+    for (let i = 0; i < hs.length; i++) if (hs[i].offsetTop <= fromTop) idx = i;
+    if (idx !== active) {
+      active = idx;
+      links.forEach((l, i) => l.classList.toggle('active', i === idx));
+    }
+  }
+  document.addEventListener('scroll', onScroll, {passive: true});
+  onScroll();
+})();
+
+// Annotation system — localStorage only
+(function () {
+  const STORAGE_KEY = 'annotation-workflow-v1';
+  const paper = document.getElementById('paper');
+  const list  = document.getElementById('ann-list');
+  const count = document.getElementById('ann-count');
+  const pill  = document.getElementById('add-pill');
+  const pop   = document.getElementById('ann-popover');
+  const popQ  = document.getElementById('popover-quote');
+  const popT  = document.getElementById('popover-text');
+  const popSave = document.getElementById('popover-save');
+  const popDel  = document.getElementById('popover-del');
+  const popRes  = document.getElementById('popover-resolve');
+  const popCancel = document.getElementById('popover-cancel');
+  const btnCopy = document.getElementById('btn-copy');
+  const btnExport = document.getElementById('btn-export');
+  const btnClear  = document.getElementById('btn-clear');
+  const btnTogRes = document.getElementById('btn-toggle-resolved');
+  const fileImport= document.getElementById('ann-import');
+
+  let annotations = [];
+  let pendingRange = null;
+  let editingId = null;
+  let hideResolved = false;
+
+  function tagBlocks() {
+    const blocks = paper.querySelectorAll('p, li, h1, h2, h3, h4, h5, pre, blockquote, .abstract p, .note-box p, .step-card p, .example-side .example-comment');
+    blocks.forEach((el, i) => { if (!el.dataset.aid) el.dataset.aid = 'b' + i; });
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  }
+  function formatTs(ts) {
+    const d = new Date(ts);
+    return d.toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+  }
+  function load() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      try { annotations = JSON.parse(raw).annotations || []; }
+      catch (e) { annotations = []; }
+    }
+  }
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({annotations}));
+  }
+  function highlightAll() {
+    paper.querySelectorAll('mark.ann').forEach(m => {
+      const parent = m.parentNode;
+      while (m.firstChild) parent.insertBefore(m.firstChild, m);
+      parent.removeChild(m);
+      parent.normalize();
+    });
+    annotations.forEach(applyHighlight);
+  }
+  function applyHighlight(a) {
+    if (hideResolved && a.status === 'resolved') return;
+    const block = paper.querySelector(`[data-aid="${a.blockId}"]`);
+    if (!block) return;
+    const text = block.textContent;
+    const idx = text.indexOf(a.quote);
+    if (idx < 0) return;
+    wrapRange(block, idx, idx + a.quote.length, a);
+  }
+  function wrapRange(root, start, end, ann) {
+    let pos = 0;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const toWrap = [];
+    let n;
+    while ((n = walker.nextNode())) {
+      const len = n.nodeValue.length;
+      const nodeStart = pos, nodeEnd = pos + len;
+      if (nodeEnd <= start) { pos = nodeEnd; continue; }
+      if (nodeStart >= end) break;
+      const localStart = Math.max(0, start - nodeStart);
+      const localEnd = Math.min(len, end - nodeStart);
+      toWrap.push({node: n, localStart, localEnd});
+      pos = nodeEnd;
+    }
+    toWrap.forEach(({node, localStart, localEnd}) => {
+      const before = node.nodeValue.slice(0, localStart);
+      const middle = node.nodeValue.slice(localStart, localEnd);
+      const after  = node.nodeValue.slice(localEnd);
+      const parent = node.parentNode;
+      if (before) parent.insertBefore(document.createTextNode(before), node);
+      const mark = document.createElement('mark');
+      mark.className = 'ann' + (ann.status === 'resolved' ? ' resolved' : '');
+      mark.dataset.aid = ann.id;
+      mark.textContent = middle;
+      mark.addEventListener('click', e => { e.stopPropagation(); openEditPopover(ann.id, mark); });
+      parent.insertBefore(mark, node);
+      if (after) parent.insertBefore(document.createTextNode(after), node);
+      parent.removeChild(node);
+    });
+  }
+  function renderList() {
+    const visible = annotations.filter(a => !hideResolved || a.status !== 'resolved');
+    count.textContent = visible.length ? `(${visible.length})` : '';
+    if (!visible.length) {
+      list.innerHTML = '<div class="empty">No comments yet. Select any text in the document to add one.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    visible.forEach(a => {
+      const div = document.createElement('div');
+      div.className = 'ann-item' + (a.status === 'resolved' ? ' resolved' : '');
+      div.innerHTML = `
+        <div class="ann-q">"${escapeHtml(a.quote.slice(0, 120))}${a.quote.length > 120 ? '…' : ''}"</div>
+        <div class="ann-c">${escapeHtml(a.comment)}</div>
+        <div class="ann-meta"><span>${formatTs(a.ts)}</span><span>${a.status}</span></div>
+      `;
+      div.addEventListener('click', () => {
+        const mark = paper.querySelector(`mark.ann[data-aid="${a.id}"]`);
+        if (mark) {
+          mark.scrollIntoView({behavior: 'smooth', block: 'center'});
+          setTimeout(() => openEditPopover(a.id, mark), 350);
+        }
+      });
+      list.appendChild(div);
+    });
+  }
+
+  let lastSelection = null;
+  document.addEventListener('selectionchange', () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) { hidePill(); return; }
+    const range = sel.getRangeAt(0);
+    if (!paper.contains(range.commonAncestorContainer)) { hidePill(); return; }
+    let block = range.commonAncestorContainer;
+    while (block && block.nodeType !== 1) block = block.parentNode;
+    while (block && !block.dataset?.aid) block = block.parentNode;
+    if (!block || !paper.contains(block)) { hidePill(); return; }
+    const quote = sel.toString().trim();
+    if (quote.length < 3) { hidePill(); return; }
+    if (range.startContainer.parentNode?.classList?.contains('ann')) { hidePill(); return; }
+    lastSelection = {blockId: block.dataset.aid, quote};
+    const rect = range.getBoundingClientRect();
+    pill.style.display = 'block';
+    pill.style.top  = (window.scrollY + rect.bottom + 8) + 'px';
+    pill.style.left = (window.scrollX + rect.left + rect.width/2 - 50) + 'px';
+  });
+  function hidePill() { pill.style.display = 'none'; }
+  pill.addEventListener('mousedown', e => e.preventDefault());
+  pill.addEventListener('click', () => {
+    if (!lastSelection) {
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) {
+        const range = sel.getRangeAt(0);
+        let block = range.commonAncestorContainer;
+        while (block && block.nodeType !== 1) block = block.parentNode;
+        while (block && !block.dataset?.aid) block = block.parentNode;
+        if (block && paper.contains(block)) {
+          lastSelection = {blockId: block.dataset.aid, quote: sel.toString().trim()};
+        }
+      }
+      if (!lastSelection) return;
+    }
+    pendingRange = lastSelection;
+    editingId = null;
+    popQ.textContent = '"' + pendingRange.quote.slice(0, 240) + (pendingRange.quote.length > 240 ? '…' : '') + '"';
+    popT.value = '';
+    popDel.style.display = 'none';
+    popRes.style.display = 'none';
+    showPopover(pill.getBoundingClientRect());
+    setTimeout(() => popT.focus(), 50);
+    hidePill();
+    window.getSelection().removeAllRanges();
+  });
+  function showPopover(refRect) {
+    pop.style.display = 'block';
+    const top  = window.scrollY + refRect.bottom + 8;
+    let left = window.scrollX + refRect.left;
+    if (left + 320 > window.scrollX + window.innerWidth - 20) {
+      left = window.scrollX + window.innerWidth - 340;
+    }
+    pop.style.top = top + 'px';
+    pop.style.left = left + 'px';
+  }
+  function hidePopover() { pop.style.display = 'none'; pendingRange = null; editingId = null; }
+  function openEditPopover(id, mark) {
+    const a = annotations.find(x => x.id === id);
+    if (!a) return;
+    editingId = id;
+    pendingRange = null;
+    popQ.textContent = '"' + a.quote.slice(0, 240) + (a.quote.length > 240 ? '…' : '') + '"';
+    popT.value = a.comment;
+    popDel.style.display = '';
+    popRes.style.display = '';
+    popRes.textContent = a.status === 'resolved' ? 'Reopen' : 'Resolve';
+    showPopover(mark.getBoundingClientRect());
+    setTimeout(() => popT.focus(), 50);
+  }
+  popCancel.addEventListener('click', hidePopover);
+  popSave.addEventListener('click', () => {
+    const text = popT.value.trim();
+    if (!text) { popT.focus(); return; }
+    if (editingId) {
+      const a = annotations.find(x => x.id === editingId);
+      if (a) { a.comment = text; a.ts = Date.now(); }
+    } else if (pendingRange) {
+      annotations.push({
+        id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+        blockId: pendingRange.blockId,
+        quote: pendingRange.quote,
+        comment: text,
+        status: 'open',
+        ts: Date.now(),
+      });
+    }
+    hidePopover(); highlightAll(); renderList(); save();
+  });
+  popDel.addEventListener('click', () => {
+    if (!editingId) return;
+    annotations = annotations.filter(a => a.id !== editingId);
+    hidePopover(); highlightAll(); renderList(); save();
+  });
+  popRes.addEventListener('click', () => {
+    if (!editingId) return;
+    const a = annotations.find(x => x.id === editingId); if (!a) return;
+    a.status = a.status === 'resolved' ? 'open' : 'resolved';
+    a.ts = Date.now();
+    hidePopover(); highlightAll(); renderList(); save();
+  });
+  document.addEventListener('mousedown', e => {
+    if (!pop.contains(e.target) && !pill.contains(e.target) && !e.target.classList.contains('ann')) {
+      hidePopover();
+    }
+  });
+
+  btnCopy.addEventListener('click', async () => {
+    if (!annotations.length) {
+      btnCopy.textContent = 'Nothing yet';
+      setTimeout(() => btnCopy.textContent = '📋 Copy', 1200); return;
+    }
+    const payload = JSON.stringify({annotations}, null, 2);
+    try {
+      await navigator.clipboard.writeText(payload);
+      btnCopy.textContent = '✓ Copied ' + annotations.length;
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = payload; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      btnCopy.textContent = '✓ Copied (fallback)';
+    }
+    setTimeout(() => btnCopy.textContent = '📋 Copy', 1500);
+  });
+  btnExport.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({annotations}, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'annotations.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  fileImport.addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    const text = await f.text();
+    try {
+      const data = JSON.parse(text);
+      if (Array.isArray(data.annotations)) {
+        annotations = data.annotations;
+        highlightAll(); renderList(); save();
+      }
+    } catch (err) { alert('Could not parse JSON: ' + err.message); }
+    e.target.value = '';
+  });
+  btnClear.addEventListener('click', () => {
+    if (!annotations.length) return;
+    if (!confirm('Clear all comments? This cannot be undone.')) return;
+    annotations = []; highlightAll(); renderList(); save();
+  });
+  btnTogRes.addEventListener('click', () => {
+    hideResolved = !hideResolved;
+    btnTogRes.textContent = hideResolved ? 'Show resolved' : 'Hide resolved';
+    highlightAll(); renderList();
+  });
+
+  tagBlocks(); load(); highlightAll(); renderList();
+})();
+
+// Download HTML
+(function () {
+  const btn = document.getElementById('btn-download');
+  const link = document.getElementById('download-btn');
+  function download() {
+    const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'annotation-workflow.html';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  btn.addEventListener('click', download);
+  link.addEventListener('click', e => { e.preventDefault(); download(); });
+})();
+</script>
+</body>
+</html>
