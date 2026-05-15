@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explorable World Models — research project intro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,500;0,700;1,400&family=DM+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --text: #111; --text-2: #3a3a3a; --text-3: #777;
+  --accent: #7c3aed; --accent-bg: #faf5ff;
+  --bg: #fff; --border: #e5e1d4; --code-bg: #f4f1e8;
+  --paper: #fbf8ee;
+  --green: #15803d; --green-bg: #f0fdf4;
+  --red: #b91c1c; --red-bg: #fef2f2;
+  --orange: #c2410c; --orange-bg: #fffbeb;
+  --blue: #1d4ed8; --blue-bg: #eff6ff;
+  --font-body: 'Literata', Georgia, serif;
+  --font-ui:   'DM Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font-body); font-size: 16.5px; line-height: 1.78;
+}
+.paper { max-width: 940px; margin: 0 auto; padding: 56px 40px 120px; }
+
+p { text-align: justify; }
+p, ul, ol { margin: 0 0 14px; }
+ul, ol { padding-left: 22px; }
+li { margin-bottom: 6px; }
+strong { color: var(--text); }
+em { font-style: italic; color: var(--text-2); }
+code, .mono { font-family: var(--font-mono); font-size: 0.92em;
+  background: var(--code-bg); padding: 1px 5px; border-radius: 3px; color: var(--text-2); }
+
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-bg); }
+a:hover { border-bottom-color: var(--accent); }
+
+h1 { font-family: var(--font-body); font-size: 34px; font-weight: 700;
+     line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+h2 { font-family: var(--font-ui); font-size: 22px; font-weight: 700;
+     margin: 44px 0 16px; padding-bottom: 6px; border-bottom: 1px solid #eee; }
+h3 { font-family: var(--font-ui); font-size: 17px; font-weight: 700; margin: 24px 0 10px; }
+h4 { font-family: var(--font-ui); font-size: 14.5px; font-weight: 700; margin: 14px 0 6px; }
+
+.draft-tag { display: inline-block; background: var(--accent-bg); color: var(--accent);
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; padding: 4px 10px; border: 1px solid var(--accent);
+  border-radius: 3px; margin-bottom: 14px; }
+.tagline { font-style: italic; color: var(--text-2); font-size: 18px;
+  margin: 6px 0 14px; text-align: left; }
+.meta-line { font-family: var(--font-ui); font-size: 13.5px; color: var(--text-3);
+  margin: 0; text-align: left; }
+.meta-line span { margin: 0 8px; color: #ccc; }
+
+.abstract {
+  background: var(--paper); border-left: 3px solid var(--accent);
+  padding: 18px 22px; margin: 28px 0 36px; border-radius: 0 6px 6px 0;
+}
+.abstract-label {
+  font-family: var(--font-ui); font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--accent); margin-bottom: 6px;
+}
+.abstract p { margin: 0; text-align: left; font-size: 15.5px; color: var(--text-2); }
+
+/* Hero figure */
+figure.hero {
+  margin: 14px 0 36px; padding: 0;
+  border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+  background: #fdfbf3;
+  box-shadow: 0 4px 20px rgba(80, 60, 0, 0.05);
+}
+figure.hero img { display: block; width: 100%; height: auto; }
+figure.hero figcaption {
+  font-family: var(--font-ui); font-size: 13px; color: var(--text-3);
+  padding: 12px 16px; border-top: 1px solid var(--border);
+  background: #fcf8eb; line-height: 1.6;
+}
+figure.hero figcaption strong { color: var(--text); }
+
+/* Note boxes */
+.note-box { border-radius: 6px; padding: 16px 20px; font-size: 15px;
+  line-height: 1.7; margin: 18px 0; border-style: solid; border-width: 1px; }
+.note-box p { text-align: left; margin: 0; }
+.note-box p + p { margin-top: 10px; }
+.note-purple { background: var(--accent-bg); border-color: #c4b5fd; }
+.note-purple strong { color: var(--accent); }
+.note-blue   { background: var(--blue-bg);   border-color: #93c5fd; }
+.note-blue strong   { color: var(--blue); }
+.note-orange { background: var(--orange-bg); border-color: #fde68a; }
+.note-orange strong { color: var(--orange); }
+.note-green  { background: var(--green-bg);  border-color: #86efac; }
+.note-green strong  { color: var(--green); }
+
+/* Demo cards grid */
+.demos {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 14px; margin: 22px 0 28px;
+}
+.demo-card {
+  display: block; padding: 16px 18px; border-radius: 10px;
+  background: var(--paper); border: 1px solid var(--border);
+  text-decoration: none !important; border: 1.5px solid var(--border);
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.demo-card:hover {
+  border-color: var(--accent); transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(80, 50, 0, 0.07);
+}
+.demo-card .badge {
+  display: inline-block; padding: 2px 8px; border-radius: 3px;
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
+  background: var(--accent); color: #fff; letter-spacing: 0.6px;
+  margin-bottom: 8px; text-transform: uppercase;
+}
+.demo-card.kind-explainer .badge { background: var(--blue); }
+.demo-card.kind-doc      .badge { background: var(--text-3); }
+.demo-card h4 {
+  font-family: var(--font-body); font-size: 17px; font-weight: 700;
+  margin: 0 0 4px; color: var(--text);
+}
+.demo-card p {
+  font-size: 13.5px; line-height: 1.5; color: var(--text-2);
+  margin: 0; text-align: left;
+}
+.demo-card .url {
+  display: block; font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-3); margin-top: 8px; word-break: break-all;
+}
+
+/* Layered card grid (the four-experiences and similar) */
+.four-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 12px; margin: 18px 0 22px;
+}
+.layer-card {
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px 16px;
+}
+.layer-card h4 {
+  font-family: var(--font-ui); font-size: 12.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.4px;
+  color: var(--accent); margin: 0 0 4px;
+}
+.layer-card .h-title {
+  font-family: var(--font-body); font-size: 15.5px; font-weight: 700;
+  margin: 0 0 4px; color: var(--text);
+}
+.layer-card p {
+  font-size: 13.5px; line-height: 1.55; color: var(--text-2);
+  margin: 0; text-align: left;
+}
+.layer-card .mech {
+  display: block; font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-3); margin-top: 6px;
+}
+
+/* Worlds list */
+.worlds-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 12px; margin: 12px 0 22px;
+}
+.world-card {
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px 14px; background: var(--paper);
+}
+.world-card .name {
+  font-family: var(--font-body); font-weight: 700; font-size: 15px;
+  display: block; margin-bottom: 2px;
+}
+.world-card .why {
+  font-size: 13px; color: var(--text-2); line-height: 1.5;
+}
+.world-card.imag { background: #fdf6ff; border-color: #e9d5ff; }
+.world-card.imag .name { color: var(--accent); }
+
+/* Question list (numbered, big) */
+.questions { counter-reset: q; padding-left: 0; list-style: none; }
+.questions > li {
+  counter-increment: q;
+  position: relative; padding: 12px 14px 12px 56px;
+  border-left: 3px solid var(--accent);
+  background: var(--paper);
+  border-radius: 0 6px 6px 0; margin-bottom: 10px;
+}
+.questions > li::before {
+  content: counter(q);
+  position: absolute; left: 14px; top: 12px;
+  font-family: var(--font-mono); font-size: 22px; font-weight: 700;
+  color: var(--accent); line-height: 1;
+}
+.questions > li strong { display: block; font-size: 15px; margin-bottom: 4px; }
+.questions > li p { margin: 0; text-align: left; font-size: 14px; color: var(--text-2); }
+
+.refs { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 14px 0; }
+.refs h4 { margin: 0 0 6px; font-size: 12.5px; text-transform: uppercase;
+  letter-spacing: 1.3px; color: var(--text-3); }
+.refs ul { margin: 0; font-size: 14px; }
+
+/* Footer */
+.foot {
+  margin-top: 60px; padding: 22px 24px; border-radius: 8px;
+  background: var(--paper); border: 1px solid var(--border);
+}
+.foot p { margin: 0 0 8px; text-align: left; }
+.foot a { font-weight: 600; }
+
+@media (max-width: 760px) {
+  .paper { padding: 28px 18px 80px; }
+  .demos, .four-grid, .worlds-grid, .refs { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="paper">
+
+  <div>
+    <div class="draft-tag">Working note · v0.1 · May 2026</div>
+    <h1>Explorable World Models — historical events &amp; imagined worlds</h1>
+    <p class="tagline">Treating the world model as the primary artifact, not as a component inside an RL agent or a video generator. The point of the system is the experience of being there.</p>
+    <p class="meta-line">research-exploration framing
+      <span>·</span> Vladimir Albrekht
+      <span>·</span> Almaty, KZ
+      <span>·</span> <a href="https://github.com/vladimiralbrekhtccr">github</a>
+    </p>
+  </div>
+
+  <div class="abstract">
+    <div class="abstract-label">In one paragraph</div>
+    <p>A <strong>world model</strong> here is a generative system that produces a navigable, interactive environment. Most current research uses world models as components — inside RL agents, behind video generators. <strong>This project treats the world model as the artifact</strong>: someone walks through a generated world and explores it. Two domains are in scope. <em>Historical events and places</em> — Otrar in 1218 before the Mongol siege, Constantinople in 1453, a Heian-period Kyoto street. <em>Imagined or fictional worlds</em> — a medieval-fantasy trade town in the spirit of Spice and Wolf, a Strugatsky-style Zone, an original world. Both share a deeper structure: an explorable environment that doesn't exist as a place a person can physically visit, where the value is in being there.</p>
+  </div>
+
+  <figure class="hero">
+    <img src="concept.png" alt="Pipeline diagram: top-down map with three numbered camera positions on the left, three 360° equirectangular panoramas in the middle (one per camera), and a 3D Gaussian-Splat reconstruction with a fly-through camera path on the right">
+    <figcaption><strong>How it gets made (current approach).</strong> A top-down map fixes the scene layout and N camera positions. One 360° panorama is generated per position, each conditioned on the map and the previous panorama so identity stays locked. Multi-view 3D Gaussian Splatting reconstructs a fly-through-able 3D scene using the map-derived poses. The same pattern is the substrate whether the scene is "Otrar 1218" or a fantasy town — only the references and the style change.</figcaption>
+  </figure>
+
+  <h2>What the experience produces</h2>
+  <p>Four distinct things happen for someone inside a generated world. They aren't the same and shouldn't be conflated. For historical worlds, all four matter; for imagined worlds, the atmospheric and emotional ones dominate, since "accuracy" doesn't apply.</p>
+
+  <div class="four-grid">
+    <div class="layer-card">
+      <h4>① Spatial</h4>
+      <div class="h-title">Spatial understanding</div>
+      <p>What was the layout. How did the rooms connect. Where did the walls breach. Why was the city positioned this way. Hard to get from text or photos.</p>
+      <span class="mech">mechanism · presence in space</span>
+    </div>
+    <div class="layer-card">
+      <h4>② Atmospheric</h4>
+      <div class="h-title">Atmospheric calibration</div>
+      <p>What was the scale of this building. What did the light look like in this kind of room. How dense were the crowds in this kind of market. Calibrations of the imagination, not facts.</p>
+      <span class="mech">mechanism · direct perception</span>
+    </div>
+    <div class="layer-card">
+      <h4>③ Counterfactual</h4>
+      <div class="h-title">Counterfactual exploration</div>
+      <p>What if I went left instead of right. What if I asked this person something. What if I time-shifted to dawn or to two weeks later. Requires interactivity and consequence, not just visual fidelity.</p>
+      <span class="mech">mechanism · choice and feedback</span>
+    </div>
+    <div class="layer-card">
+      <h4>④ Emotional</h4>
+      <div class="h-title">Emotional connection</div>
+      <p>This is real. My ancestors lived here. This place mattered. Not learning in the academic sense — relationship-formation with a place. Triggered by everything else working together.</p>
+      <span class="mech">mechanism · affect</span>
+    </div>
+  </div>
+
+  <h2>Try the existing demos</h2>
+  <p>Three live browser demos already exist, all built from a single 360° panorama (the depth-only "Path A" baseline). They make the splat-vs-mesh distinction visceral, and the explainer page covers the math behind 3DGS. Click in.</p>
+
+  <div class="demos">
+    <a class="demo-card kind-explainer" href="../3dgs-explainer/">
+      <span class="badge">explainer</span>
+      <h4>3DGS — interactive primer</h4>
+      <p>What a Gaussian is, splatting math, training loop, three live canvas widgets (single 2D Gaussian sliders, isotropy comparison, training-step animation), and a 6-second rendered training video.</p>
+      <span class="url">/3dgs-explainer/</span>
+    </a>
+    <a class="demo-card" href="../3dgs/">
+      <span class="badge">demo</span>
+      <h4>Splat viewer</h4>
+      <p>The same panorama rendered as ~390k 3D Gaussians, in WebGL via <code>mkkellogg/gaussian-splats-3d</code>. Drag to look, scroll to zoom, WASD to fly.</p>
+      <span class="url">/3dgs/</span>
+    </a>
+    <a class="demo-card" href="../3dgs-mesh/">
+      <span class="badge">demo</span>
+      <h4>Walkable mesh</h4>
+      <p>Same panorama turned into a 394k-vertex textured mesh. Three.js + PointerLock; WASD + mouse + jump + sprint, T-key cycles texture / wireframe overlay.</p>
+      <span class="url">/3dgs-mesh/</span>
+    </a>
+    <a class="demo-card kind-doc" href="../annotation-workflow/">
+      <span class="badge">workflow</span>
+      <h4>Inline-annotation pattern</h4>
+      <p>The interactive-doc convention used across this project: select text in a self-contained HTML, get a "+ Comment" pill, copy the JSON back to Claude Code for batch edits.</p>
+      <span class="url">/annotation-workflow/</span>
+    </a>
+  </div>
+
+  <p style="text-align:center; color: var(--text-3); font-size: 13px; margin: 20px 0 30px;">Source: <a href="https://github.com/vladimiralbrekhtccr/world-models">github.com/vladimiralbrekhtccr/world-models</a></p>
+
+  <h2>Technical approach</h2>
+  <p>A hybrid of three representations, each chosen for what it's actually good at:</p>
+
+  <div class="four-grid">
+    <div class="layer-card">
+      <h4>3DGS</h4>
+      <div class="h-title">Bulk environment</div>
+      <p>Terrain, building exteriors, atmosphere, lighting. Fast to render, photoreal where source data supports it, forgiving where it doesn't. The right primitive for everything the eye sweeps over.</p>
+    </div>
+    <div class="layer-card">
+      <h4>Polygon meshes</h4>
+      <div class="h-title">Crisp + interactive</div>
+      <p>Animatable characters, key buildings with crisp architectural lines, interactive props, anything the user might collide with. Decades of pipeline tooling Gaussians don't yet match.</p>
+    </div>
+    <div class="layer-card">
+      <h4>Diffusion models</h4>
+      <div class="h-title">Generative completion</div>
+      <p>Two roles: detail synthesis at the periphery where ground-truth assets don't exist; and stylistic refinement of rendered frames to enforce consistency across the hybrid.</p>
+    </div>
+    <div class="layer-card">
+      <h4>4DGS (provisional)</h4>
+      <div class="h-title">Open question</div>
+      <p>Designed for dynamic captures with multi-camera over time, which historical/imagined scenes don't have. Whether 4DGS adds value here, or whether dynamics should live in a separate layered system, is itself an open research question.</p>
+    </div>
+  </div>
+
+  <div class="note-box note-purple">
+    <p><strong>Current substrate.</strong> The diagram above (map → 3 panoramas → multi-view 3DGS) is the substrate we're building first. It works for both domains: a fictional fantasy clearing and a reconstruction of Otrar 1218 use the same code path — only the references and the artistic register change.</p>
+  </div>
+
+  <h2>Research questions worth anchoring on</h2>
+  <p>A project like this can sprawl forever. Anchoring on one or two specific technical questions keeps it converging. Each is independently interesting.</p>
+
+  <ol class="questions">
+    <li><strong>The fidelity-creativity seam.</strong>
+      <p>Where does 3DGS hand off to diffusion in the rendering pipeline, and what does the seam look like visually. Most published work uses one or the other, not both in a tight loop.</p>
+    </li>
+    <li><strong>Bootstrapping with no photographs.</strong>
+      <p>Pre-photographic eras have engravings, paintings, written descriptions, partial archaeological reconstructions. How do you actually build a 3DGS asset from these. The hardest question and the one with the least public work.</p>
+    </li>
+    <li><strong>The 4D question.</strong>
+      <p>Does 4DGS make sense for static-scenes-with-imagined-events, or is a separate dynamic layer cleaner. Need to build it both ways and compare.</p>
+    </li>
+    <li><strong>Aesthetic register.</strong>
+      <p>Photoreal reconstruction of a pre-photographic scene lands in uncanny territory because the data doesn't support photorealism. Stylized (painterly, illustrative, ukiyo-e-like) might be more honest. Comparing registers is its own exploration.</p>
+    </li>
+    <li><strong>Navigation feel.</strong>
+      <p>What does it feel like to walk through a 3DGS scene as opposed to a meshed game environment. Where does the illusion break. The walkable-mesh demo above is the first data point.</p>
+    </li>
+    <li><strong>Real-time browser delivery.</strong>
+      <p>How small and fast can a meaningful scene run in a browser, with WebGL or WebGPU. The current demos answer "1 panorama → 20-100 MB and 60 FPS"; the next question is how that scales to a multi-room reconstruction.</p>
+    </li>
+  </ol>
+
+  <h2>Candidate worlds</h2>
+  <p>Targets, not deliverables. Each one drives different technical sub-questions; picking one is the next decision. The right choice is the one that most directly attacks whichever research question gets prioritized.</p>
+
+  <h3>Historical</h3>
+  <div class="worlds-grid">
+    <div class="world-card">
+      <span class="name">Otrar, 1218</span>
+      <span class="why">Kazakh history's most famous siege. Mostly destroyed afterward, archaeology partial. <strong>Bootstrap-from-scarce-data</strong> is the central question. Strong cultural-relevance angle for a Kazakhstan-based project.</span>
+    </div>
+    <div class="world-card">
+      <span class="name">Tash-Rabat caravanserai</span>
+      <span class="why">Still standing, well-documented. Closer to <strong>standard 3DGS reconstruction</strong> from scans plus diffusion-filled interior life.</span>
+    </div>
+    <div class="world-card">
+      <span class="name">Constantinople, 1453</span>
+      <span class="why">Heavily documented; Hagia Sophia still stands. The <strong>fidelity-creativity seam</strong> is the central question — so much can be ground-truthed.</span>
+    </div>
+    <div class="world-card">
+      <span class="name">Heian-period Kyoto street</span>
+      <span class="why">Rich primary sources (Tale of Genji, picture scrolls). <strong>Stylized register</strong> might be the natural choice.</span>
+    </div>
+    <div class="world-card">
+      <span class="name">Library of Alexandria</span>
+      <span class="why">Almost no direct visual evidence. Mostly diffusion-driven imagining constrained by textual sources. <strong>Tests how far you can push with sparse input.</strong></span>
+    </div>
+  </div>
+
+  <h3>Imagined</h3>
+  <div class="worlds-grid">
+    <div class="world-card imag">
+      <span class="name">Spice-and-Wolf-style trade town</span>
+      <span class="why">Medieval-fantasy market town, no accuracy constraint, full aesthetic freedom. Good first imagined target.</span>
+    </div>
+    <div class="world-card imag">
+      <span class="name">A Strugatsky-style Zone</span>
+      <span class="why">Atmospheric and unsettling. Minimal geometry, maximal mood. Tests the "atmospheric" axis of the experience.</span>
+    </div>
+    <div class="world-card imag">
+      <span class="name">An original imagined world</span>
+      <span class="why">The most freeing and the most directionless. Probably comes after the project finds its voice.</span>
+    </div>
+  </div>
+
+  <h2>Reference work to study</h2>
+  <div class="refs">
+    <div>
+      <h4>Core techniques</h4>
+      <ul>
+        <li>3DGS original paper (Kerbl et al., 2023)</li>
+        <li>4DGS papers, 2023–2024</li>
+        <li>NeRF in the Wild — handles inconsistent source data</li>
+        <li>DDPM / score-based diffusion fundamentals</li>
+      </ul>
+    </div>
+    <div>
+      <h4>World models as artifacts</h4>
+      <ul>
+        <li>Genie / Genie 2 (DeepMind)</li>
+        <li>GameNGen (Google Research) — DOOM as a learned environment</li>
+        <li>DIAMOND — diffusion world models for Atari</li>
+        <li>WorldDreamer, WHAM</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Visual reference</h4>
+      <ul>
+        <li>Studio Ghibli backgrounds (Kazuo Oga)</li>
+        <li>Ukiyo-e &amp; historical engravings</li>
+        <li>Total War: Attila, Kingdom Come: Deliverance</li>
+        <li>Red Dead Redemption 2 environments</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Adjacent multi-view → 3D</h4>
+      <ul>
+        <li>DreamScene360 (Zhou et al., ECCV 2024)</li>
+        <li>CAT3D (Google, NeurIPS 2024)</li>
+        <li>WonderJourney / WonderWorld (Stanford, 2024)</li>
+        <li>LucidDreamer</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Open questions before next-step work</h2>
+  <p>These are the decision points. Joining the project effectively means having an opinion on at least the first two.</p>
+  <ol>
+    <li>Which scene anchors the first build — historical or imagined, specific choice.</li>
+    <li>Which one or two research questions are primary; others become incidental observations.</li>
+    <li>Aesthetic register — photoreal, stylized, illustrative, something else.</li>
+    <li>Browser delivery (WebGL / WebGPU constraints) or downloadable standalone.</li>
+    <li>Whether 4DGS is in scope for the first build or deferred.</li>
+  </ol>
+
+  <h2>How to get involved</h2>
+  <div class="foot">
+    <p><strong>If this is interesting to you:</strong> the cheapest first step is to actually walk through one of the live demos above. Drop a comment on whatever stands out. The 3DGS explainer's page has inline annotations — your notes stay in your browser, and copying them back to me is one click.</p>
+    <p><strong>To talk about it:</strong> open an issue or message me through the
+      <a href="https://github.com/vladimiralbrekhtccr/world-models">world-models repo</a>.
+      The
+      <a href="https://github.com/vladimiralbrekhtccr/world-models/blob/main/MultiPano/README.md">MultiPano/README.md</a>
+      is the closest thing to a current technical roadmap.</p>
+    <p><strong>What I'm not looking for:</strong> a co-founder. This is a research exploration, not a startup. I'm looking for people interested in the questions for their own sake, who want to think alongside.</p>
+  </div>
+
+  <p style="color: var(--text-3); font-size: 13px; margin-top: 28px; text-align: center;"><em>This page is a working note. It will be updated when major design decisions are made — scene choice, primary research question, aesthetic register, delivery target.</em></p>
+
+</div>
+</body>
+</html>
