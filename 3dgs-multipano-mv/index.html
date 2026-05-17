@@ -20,12 +20,17 @@
 <body>
 <div id="app"></div>
 <div id="hud">
-  <b>MultiPano → REAL multi-view 3DGS</b> · same 3 Codex-generated panoramas
-  of the Witch-Hat-Atelier chapel clearing as the depth-fusion demo, but
-  trained with proper gsplat multi-view photometric loss (5000 iters,
-  adaptive density control 20k → 590k Gaussians, ~94 s on one H100). 38 MB.<br>
+  <b>MultiPano → multi-view 3DGS (honest failure)</b> · 3 Codex-generated
+  panoramas of the same chapel clearing, trained with gsplat photometric +
+  SSIM loss (5000 iters, 590k Gaussians, ~94 s on one H100). The result is
+  a fuzzy blob, not a chapel — and that's the <em>point of this demo</em>.
+  The panoramas aren't 3D-consistent enough (each draws the chapel
+  windows / door slightly differently) so the optimizer averages the
+  inconsistencies into mush. This is the "cross-view consistency" risk
+  named in <a href="../project/">the project intro</a>'s research question #1.
+  Fix path: video-diffusion-as-prior (CAT3D / Lyra 2.0 / ReconX). 38 MB.<br>
   drag to look · scroll to zoom · <kbd>WASD</kbd> to move ·
-  <a href="../3dgs-multipano/">depth-fusion version</a> ·
+  <a href="../3dgs-multipano/">depth-fusion version (looks better!)</a> ·
   <a href="../3dgs-explainer/">what's a Gaussian?</a> ·
   <a href="https://github.com/vladimiralbrekhtccr/world-models">repo</a>
 </div>
