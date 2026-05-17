@@ -20,18 +20,16 @@
 <body>
 <div id="app"></div>
 <div id="hud">
-  <b>Diagnostic v2: VIPE poses + real gsplat training</b> · same room
-  video as the <a href="../3dgs-room/">Lyra-recon version</a>, but instead
-  of Lyra's feed-forward recon we used VIPE's pose estimates + Lyra's PLY
-  as init, then ran 5000 iters of standard photometric L1 + SSIM loss
-  with adaptive density control (gsplat DefaultStrategy, ~28 s on H100).
-  Density grew 400K → 1.24M gaussians during training.<br>
-  <em>Result:</em> on-trajectory views are much cleaner (no pixel-shell
-  ghosting), and off-trajectory views go honestly black where the video
-  never filmed. That's correct 3DGS behaviour and confirms the
-  <code>3dgs-room</code> ghosting was Lyra's feed-forward recon, not the
-  pose estimation. For real fly-around, the video has to cover those
-  off-trajectory angles too.<br>
+  <b>Diagnostic v2: VIPE poses + real gsplat training (full 79-sec video)</b>
+  · same room video as the <a href="../3dgs-room/">Lyra-recon version</a>,
+  but with VIPE's pose estimates + Lyra PLY init + 7000 iters of
+  photometric L1 + SSIM with adaptive density control (gsplat
+  DefaultStrategy, ~35 s on H100). Density grew 600K → 1.49M gaussians.
+  Now covers the FULL 79 sec of video (634 frames @ 8 fps) — the earlier
+  version mistakenly used only the first 10 sec.<br>
+  <em>Result:</em> on-trajectory views are much cleaner than Lyra's
+  recon (no pixel-shell ghosting), off-trajectory views fall off to
+  emptiness where the camera never filmed.<br>
   <kbd>click</kbd> to enter, <kbd>ESC</kbd> to exit · mouse to look ·
   <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move ·
   <kbd>R</kbd><kbd>F</kbd> up/down · <kbd>shift</kbd> faster ·
@@ -75,8 +73,8 @@ viewer.addSplatScene('scene.ply', {
   const controls = new PointerLockControls(camera, dom);
   dom.addEventListener('click', () => controls.lock());
 
-  const SPEED = 1.5;       // units / sec  (scene radius ~3)
-  const SPEED_FAST = 5.0;
+  const SPEED = 3.0;       // units / sec  (scene radius ~10 with full video)
+  const SPEED_FAST = 10.0;
   const keys = Object.create(null);
   document.addEventListener('keydown', e => { keys[e.code] = true; });
   document.addEventListener('keyup',   e => { keys[e.code] = false; });
