@@ -38,13 +38,17 @@
 </div>
 <div id="hud">
   <b>MultiPano → Lyra 2.0 (video-diffusion prior)</b> · One Codex-generated
-  panorama of the chapel + a custom camera trajectory through pins 1→2→3.
-  Lyra's video diffusion hallucinates a 3D-consistent flythrough video
-  (162 frames, 4-step DMD sampling, ~50 s), then its feed-forward
-  reconstructor turns the video into a Gaussian-splat scene. The whole
-  scene is generated from a single image — by construction the views are
-  3D-consistent, which is what the
+  panorama of the chapel + a custom 161-frame trajectory through pins
+  1→2→3. Lyra's video diffusion hallucinates a 3D-consistent flythrough
+  video (~80 s), then its feed-forward DA3+VIPE reconstructor turns the
+  video into a 11M-gaussian splat scene (subsampled here to 1.2M for the
+  browser). The whole thing is generated from a single image — by
+  construction the views are 3D-consistent, which is what the
   <a href="../3dgs-multipano-mv/">naive-multi-view version</a> failed at.<br>
+  <em>Caveat:</em> Lyra's gaussians are pixel-aligned (each frame contributes
+  view-aligned shells), so the scene renders cleanly along the original
+  trajectory — see the two videos top-right — but you'll see ghosting if
+  you fly the camera off-trajectory.<br>
   drag to look · scroll to zoom · <kbd>WASD</kbd> to move ·
   <a href="../3dgs-multipano/">depth-fusion version</a> ·
   <a href="../3dgs-multipano-mv/">naive multi-view (failure)</a> ·
