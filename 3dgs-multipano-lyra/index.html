@@ -65,20 +65,21 @@
 <script type="module">
 import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
 
-// PLY (Lyra/OpenCV frame): scene bulk ≈ X[-140,+7], Y[-30,+3], Z[-46,+57]
-// (5/95 percentile). Camera at world origin is buried; back off in -Z.
+// Recon-side cameras.npz: frame 0 = origin looking +Z (OpenCV / Y-down),
+// fx≈704 at 832×480. Lyra's pixel-aligned gaussians look clean from this
+// pose (and degrade off-trajectory — that's a known pixelsplat artifact).
 const viewer = new GaussianSplats3D.Viewer({
   rootElement: document.getElementById('app'),
   cameraUp:               [0, -1, 0],
-  initialCameraPosition:  [-60, -10, -45],
-  initialCameraLookAt:    [-60, -10, 10],
+  initialCameraPosition:  [0, 0, -0.1],
+  initialCameraLookAt:    [0, 0, 5],
   sphericalHarmonicsDegree: 0,
   sharedMemoryForWorkers: false,
 });
 
 viewer.addSplatScene('scene.ply', {
   showLoadingUI: true,
-  splatAlphaRemovalThreshold: 20,
+  splatAlphaRemovalThreshold: 5,
 }).then(() => viewer.start());
 </script>
 </body>
