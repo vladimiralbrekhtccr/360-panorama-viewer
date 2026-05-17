@@ -70,13 +70,13 @@
 import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
 
 // Recon-side cameras.npz: frame 0 = origin looking +Z (OpenCV / Y-down),
-// fx≈704 at 832×480. Lyra's pixel-aligned gaussians look clean from this
-// pose (and degrade off-trajectory — that's a known pixelsplat artifact).
+// fx≈704 at 832×480. Scene spans ~100 units across — default WASD speed
+// is tuned for unit scenes, so bump it.
 const viewer = new GaussianSplats3D.Viewer({
   rootElement: document.getElementById('app'),
   cameraUp:               [0, -1, 0],
-  initialCameraPosition:  [0, 0, -0.1],
-  initialCameraLookAt:    [0, 0, 5],
+  initialCameraPosition:  [0, -2, -3],
+  initialCameraLookAt:    [0, 0, 10],
   sphericalHarmonicsDegree: 0,
   sharedMemoryForWorkers: false,
 });
@@ -85,6 +85,14 @@ viewer.addSplatScene('scene.ply', {
   showLoadingUI: true,
   splatAlphaRemovalThreshold: 5,
 }).then(() => viewer.start());
+
+// Scale up WASD step + look-speed for this ~100-unit scene.
+window.addEventListener('keydown', (e) => {
+  const controls = viewer.controls;
+  if (!controls) return;
+  controls.keyPanSpeed = 30;       // shift/arrow pan
+  if (controls.moveSpeed !== undefined) controls.moveSpeed = 2.0;
+});
 </script>
 </body>
 </html>
