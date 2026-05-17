@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>world-models · MultiPano (Lyra 4× — 360° fusion)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #ddd;
+    font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  #app { position: fixed; inset: 0; }
+  #hud { position: fixed; top: 10px; left: 12px; padding: 8px 10px;
+    background: rgba(0,0,0,.55); border: 1px solid #333; border-radius: 4px;
+    pointer-events: none; max-width: 84vw; }
+  #hud b { color: #fff; }
+  #hud kbd { background: #222; border: 1px solid #444; border-radius: 3px;
+    padding: 0 4px; }
+  a { color: #6fa; }
+  #vids { position: fixed; right: 10px; top: 10px; display: grid;
+    grid-template-columns: 1fr 1fr; gap: 6px; z-index: 2; }
+  #vids figure { margin: 0; padding: 3px; background: rgba(0,0,0,.55);
+    border: 1px solid #333; border-radius: 4px; }
+  #vids figcaption { font-size: 10px; color: #ccc; padding: 2px 0 0; }
+  #vids video { display: block; width: 140px; height: auto; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="vids">
+  <figure><video src="n.mp4" autoplay loop muted playsinline></video>
+    <figcaption>N (chapel)</figcaption></figure>
+  <figure><video src="e.mp4" autoplay loop muted playsinline></video>
+    <figcaption>E</figcaption></figure>
+  <figure><video src="s.mp4" autoplay loop muted playsinline></video>
+    <figcaption>S</figcaption></figure>
+  <figure><video src="w.mp4" autoplay loop muted playsinline></video>
+    <figcaption>W</figcaption></figure>
+</div>
+<div id="hud">
+  <b>MultiPano → Lyra 2.0 × 4 (360° fusion)</b> · pano_2 sliced into 4
+  perspective first-frames (N/E/S/W), 4 Lyra video-diffusion + recon
+  passes from the same pin-2 position, then per-PLY R_y(yaw) rotation and
+  concat into one world-frame scene. Each direction has its own
+  pixel-aligned splats so the merged cloud has 4 sweet spots.<br>
+  <em>v2 of <a href="../3dgs-multipano-lyra/">the single-view version</a>
+  · same caveat about pixel-aligned gaussians ghosting off-trajectory.</em><br>
+  drag to look · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> fly ·
+  <kbd>R</kbd><kbd>F</kbd> up/down ·
+  <a href="../3dgs-multipano-lyra/">v1 (1 direction)</a> ·
+  <a href="../3dgs-multipano-mv/">naive multi-view (failure)</a> ·
+  <a href="../3dgs-multipano/">depth-fusion</a> ·
+  <a href="https://github.com/vladimiralbrekhtccr/world-models">repo</a>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three":                              "https://esm.sh/three@0.160.0",
+    "three/addons/":                      "https://esm.sh/three@0.160.0/examples/jsm/",
+    "@mkkellogg/gaussian-splats-3d":      "https://esm.sh/@mkkellogg/gaussian-splats-3d@0.4.7?deps=three@0.160.0"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { FlyControls } from 'three/addons/controls/FlyControls.js';
+import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+
+// World frame here = run 0 (north-facing) Lyra frame: OpenCV / Y-down.
+// Start at pin-2 origin, slightly tilted to take in the chapel ahead.
+const viewer = new GaussianSplats3D.Viewer({
+  rootElement: document.getElementById('app'),
+  cameraUp:               [0, -1, 0],
+  initialCameraPosition:  [0, -2, -3],
+  initialCameraLookAt:    [0, 0, 10],
+  sphericalHarmonicsDegree: 0,
+  sharedMemoryForWorkers: false,
+});
+
+viewer.addSplatScene('scene.ply', {
+  showLoadingUI: true,
+  splatAlphaRemovalThreshold: 5,
+}).then(() => {
+  if (viewer.controls) { viewer.controls.enabled = false; }
+  const fly = new FlyControls(viewer.camera, viewer.renderer.domElement);
+  fly.movementSpeed = 8.0;
+  fly.rollSpeed    = 0.6;
+  fly.dragToLook   = true;
+  fly.autoForward  = false;
+  const clock = new THREE.Clock();
+  const tick = () => { fly.update(clock.getDelta()); requestAnimationFrame(tick); };
+  tick();
+  viewer.start();
+});
+</script>
+</body>
+</html>
