@@ -49,7 +49,8 @@
   view-aligned shells), so the scene renders cleanly along the original
   trajectory — see the two videos top-right — but you'll see ghosting if
   you fly the camera off-trajectory.<br>
-  drag to look · scroll to zoom · <kbd>WASD</kbd> to move ·
+  drag to look · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> fly ·
+  <kbd>R</kbd><kbd>F</kbd> up/down ·
   <a href="../3dgs-multipano/">depth-fusion version</a> ·
   <a href="../3dgs-multipano-mv/">naive multi-view (failure)</a> ·
   <a href="../3dgs-explainer/">what's a Gaussian?</a> ·
@@ -67,11 +68,12 @@
 </script>
 
 <script type="module">
+import * as THREE from 'three';
+import { FlyControls } from 'three/addons/controls/FlyControls.js';
 import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
 
 // Recon-side cameras.npz: frame 0 = origin looking +Z (OpenCV / Y-down),
-// fx≈704 at 832×480. Scene spans ~100 units across — default WASD speed
-// is tuned for unit scenes, so bump it.
+// fx≈704 at 832×480. Scene spans ~100 units across.
 const viewer = new GaussianSplats3D.Viewer({
   rootElement: document.getElementById('app'),
   cameraUp:               [0, -1, 0],
@@ -84,14 +86,21 @@ const viewer = new GaussianSplats3D.Viewer({
 viewer.addSplatScene('scene.ply', {
   showLoadingUI: true,
   splatAlphaRemovalThreshold: 5,
-}).then(() => viewer.start());
-
-// Scale up WASD step + look-speed for this ~100-unit scene.
-window.addEventListener('keydown', (e) => {
-  const controls = viewer.controls;
-  if (!controls) return;
-  controls.keyPanSpeed = 30;       // shift/arrow pan
-  if (controls.moveSpeed !== undefined) controls.moveSpeed = 2.0;
+}).then(() => {
+  // Replace the default orbit controls with FlyControls (drag to look + WASD/RF).
+  if (viewer.controls) { viewer.controls.enabled = false; }
+  const fly = new FlyControls(viewer.camera, viewer.renderer.domElement);
+  fly.movementSpeed = 8.0;   // ~100-unit scene
+  fly.rollSpeed    = 0.6;
+  fly.dragToLook   = true;   // mouse-drag rotates instead of free-look
+  fly.autoForward  = false;
+  const clock = new THREE.Clock();
+  const tick = () => {
+    fly.update(clock.getDelta());
+    requestAnimationFrame(tick);
+  };
+  tick();
+  viewer.start();
 });
 </script>
 </body>
