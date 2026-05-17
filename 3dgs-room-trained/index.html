@@ -32,8 +32,9 @@
   <code>3dgs-room</code> ghosting was Lyra's feed-forward recon, not the
   pose estimation. For real fly-around, the video has to cover those
   off-trajectory angles too.<br>
-  drag to look · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> fly ·
-  <kbd>R</kbd><kbd>F</kbd> up/down ·
+  <kbd>click</kbd> to enter, <kbd>ESC</kbd> to exit · mouse to look ·
+  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move ·
+  <kbd>R</kbd><kbd>F</kbd> up/down · <kbd>shift</kbd> faster ·
   <a href="../3dgs-room/">Lyra recon (same video)</a> ·
   <a href="https://github.com/vladimiralbrekhtccr/world-models">repo</a>
 </div>
@@ -50,7 +51,7 @@
 
 <script type="module">
 import * as THREE from 'three';
-import { FlyControls } from 'three/addons/controls/FlyControls.js';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
 
 // VIPE frame-0 = origin looking +Z (OpenCV / Y-down); scene radius ~3.
@@ -68,13 +69,33 @@ viewer.addSplatScene('scene.ply', {
   splatAlphaRemovalThreshold: 5,
 }).then(() => {
   if (viewer.controls) { viewer.controls.enabled = false; }
-  const fly = new FlyControls(viewer.camera, viewer.renderer.domElement);
-  fly.movementSpeed = 0.3;
-  fly.rollSpeed    = 0.6;
-  fly.dragToLook   = true;
-  fly.autoForward  = false;
+
+  const camera = viewer.camera;
+  const dom = viewer.renderer.domElement;
+  const controls = new PointerLockControls(camera, dom);
+  dom.addEventListener('click', () => controls.lock());
+
+  const SPEED = 1.5;       // units / sec  (scene radius ~3)
+  const SPEED_FAST = 5.0;
+  const keys = Object.create(null);
+  document.addEventListener('keydown', e => { keys[e.code] = true; });
+  document.addEventListener('keyup',   e => { keys[e.code] = false; });
+
+  const up = new THREE.Vector3(0, -1, 0);  // y-down world
   const clock = new THREE.Clock();
-  const tick = () => { fly.update(clock.getDelta()); requestAnimationFrame(tick); };
+  const tick = () => {
+    const dt = clock.getDelta();
+    const sp = (keys['ShiftLeft'] || keys['ShiftRight']) ? SPEED_FAST : SPEED;
+    if (controls.isLocked) {
+      const f = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
+      const r = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+      const u = (keys['KeyR'] ? 1 : 0) - (keys['KeyF'] ? 1 : 0);  // R up, F down (y-down world)
+      if (f) controls.moveForward(f * sp * dt);
+      if (r) controls.moveRight(r * sp * dt);
+      if (u) camera.position.addScaledVector(up, u * sp * dt);
+    }
+    requestAnimationFrame(tick);
+  };
   tick();
   viewer.start();
 });
