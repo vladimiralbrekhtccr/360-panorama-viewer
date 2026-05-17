@@ -65,18 +65,20 @@
 <script type="module">
 import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
 
+// PLY (Lyra/OpenCV frame): scene bulk ≈ X[-140,+7], Y[-30,+3], Z[-46,+57]
+// (5/95 percentile). Camera at world origin is buried; back off in -Z.
 const viewer = new GaussianSplats3D.Viewer({
   rootElement: document.getElementById('app'),
   cameraUp:               [0, -1, 0],
-  initialCameraPosition:  [0, 0, 0],
-  initialCameraLookAt:    [0, 0, 3],
+  initialCameraPosition:  [-60, -10, -45],
+  initialCameraLookAt:    [-60, -10, 10],
   sphericalHarmonicsDegree: 0,
   sharedMemoryForWorkers: false,
 });
 
 viewer.addSplatScene('scene.ply', {
   showLoadingUI: true,
-  splatAlphaRemovalThreshold: 5,
+  splatAlphaRemovalThreshold: 20,
 }).then(() => viewer.start());
 </script>
 </body>
