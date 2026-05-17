@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>world-models · MultiPano (Lyra 2.0 video-prior 3DGS)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #ddd;
+    font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  #app { position: fixed; inset: 0; }
+  #hud { position: fixed; top: 10px; left: 12px; padding: 8px 10px;
+    background: rgba(0,0,0,.55); border: 1px solid #333; border-radius: 4px;
+    pointer-events: none; max-width: 84vw; }
+  #hud b { color: #fff; }
+  #hud kbd { background: #222; border: 1px solid #444; border-radius: 3px;
+    padding: 0 4px; }
+  a { color: #6fa; }
+  #vids { position: fixed; right: 10px; top: 10px; display: flex; gap: 8px;
+    flex-direction: column; z-index: 2; }
+  #vids figure { margin: 0; padding: 4px; background: rgba(0,0,0,.55);
+    border: 1px solid #333; border-radius: 4px; }
+  #vids figcaption { font-size: 11px; color: #ccc; padding: 2px 0 0; }
+  #vids video { display: block; width: 240px; height: auto; }
+  @media (max-width: 720px) { #vids video { width: 160px; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="vids">
+  <figure>
+    <video src="diffusion.mp4" autoplay loop muted playsinline></video>
+    <figcaption>① video diffusion output (161 frames, ~80s on H100)</figcaption>
+  </figure>
+  <figure>
+    <video src="gs_render.mp4" autoplay loop muted playsinline></video>
+    <figcaption>② 3DGS rendered along the same trajectory</figcaption>
+  </figure>
+</div>
+<div id="hud">
+  <b>MultiPano → Lyra 2.0 (video-diffusion prior)</b> · One Codex-generated
+  panorama of the chapel + a custom camera trajectory through pins 1→2→3.
+  Lyra's video diffusion hallucinates a 3D-consistent flythrough video
+  (162 frames, 4-step DMD sampling, ~50 s), then its feed-forward
+  reconstructor turns the video into a Gaussian-splat scene. The whole
+  scene is generated from a single image — by construction the views are
+  3D-consistent, which is what the
+  <a href="../3dgs-multipano-mv/">naive-multi-view version</a> failed at.<br>
+  drag to look · scroll to zoom · <kbd>WASD</kbd> to move ·
+  <a href="../3dgs-multipano/">depth-fusion version</a> ·
+  <a href="../3dgs-multipano-mv/">naive multi-view (failure)</a> ·
+  <a href="../3dgs-explainer/">what's a Gaussian?</a> ·
+  <a href="https://github.com/vladimiralbrekhtccr/world-models">repo</a>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three":                              "https://esm.sh/three@0.160.0",
+    "three/addons/":                      "https://esm.sh/three@0.160.0/examples/jsm/",
+    "@mkkellogg/gaussian-splats-3d":      "https://esm.sh/@mkkellogg/gaussian-splats-3d@0.4.7?deps=three@0.160.0"
+  }
+}
+</script>
+
+<script type="module">
+import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+
+const viewer = new GaussianSplats3D.Viewer({
+  rootElement: document.getElementById('app'),
+  cameraUp:               [0, -1, 0],
+  initialCameraPosition:  [0, 0, 0],
+  initialCameraLookAt:    [0, 0, 3],
+  sphericalHarmonicsDegree: 0,
+  sharedMemoryForWorkers: false,
+});
+
+viewer.addSplatScene('scene.ply', {
+  showLoadingUI: true,
+  splatAlphaRemovalThreshold: 5,
+}).then(() => viewer.start());
+</script>
+</body>
+</html>
